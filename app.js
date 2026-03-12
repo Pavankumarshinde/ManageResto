@@ -3,9 +3,7 @@
 // ==========================================
 // Detect local vs deployed backend
 const API_BASE =
-  window.location.hostname === "localhost"
-    ? "http://localhost:3000"
-    : "https://manageresto-backend.onrender.com";
+  window.location.hostname === "https://manageresto-backend-zrrv.onrender.com";
 
 let state = {
   menu: [],
