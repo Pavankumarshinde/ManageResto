@@ -1,6 +1,11 @@
 // ==========================================
 // ManageResto – Main Application Logic
 // ==========================================
+// Detect local vs deployed backend
+const API_BASE =
+  window.location.hostname === "localhost"
+    ? "http://localhost:3000"
+    : "https://manageresto-backend.onrender.com";
 
 let state = {
   menu: [],
@@ -18,7 +23,7 @@ let state = {
 // ===== PERSISTENCE (Node.js API) =====
 async function saveState() {
   try {
-    await fetch('http://localhost:3000/api/state', {
+    await fetch(`${API_BASE}/api/state`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -35,18 +40,20 @@ async function saveState() {
 
 async function loadState() {
   try {
-    const res = await fetch('http://localhost:3000/api/state');
+    const res = await fetch(`${API_BASE}/api/state`);
     if (!res.ok) throw new Error('API down');
+
     const data = await res.json();
-    
+
     // If DB is empty on first load, use DEFAULT_MENU
-    state.menu = data.menu && data.menu.length > 0 ? data.menu : DEFAULT_MENU.map(i => ({...i}));
+    state.menu = data.menu && data.menu.length > 0 ? data.menu : DEFAULT_MENU.map(i => ({ ...i }));
     state.orders = data.orders || [];
     state.nextOrderId = data.nextOrderId || 10;
     state.nextMenuId = data.nextMenuId || 100;
+
   } catch (err) {
     console.error('Failed to load state from server, using defaults', err);
-    state.menu = DEFAULT_MENU.map(i => ({...i}));
+    state.menu = DEFAULT_MENU.map(i => ({ ...i }));
     state.orders = [];
   }
 }
@@ -107,12 +114,12 @@ function switchOrderTab(tab) {
 
 function renderOrders() {
   const list = document.getElementById('orders-list');
-  
+
   const activeOrders = state.orders.filter(o => !o.paid);
   const completedOrders = state.orders.filter(o => o.paid);
 
   document.getElementById('badge-active').textContent = activeOrders.length;
-  
+
   const ordersToShow = currentOrderTab === 'active' ? activeOrders : completedOrders;
 
   if (ordersToShow.length === 0) {
@@ -129,12 +136,12 @@ function renderOrders() {
 
 function renderOrderCard(order) {
   const isCompleted = order.paid;
-  const time = new Date(order.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+  const time = new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   const itemRows = order.items.map((item, idx) => {
     const mi = getMenuItemById(item.menuItemId);
     if (!mi) return '';
-    
+
     // In completed tab, just show text. In active, show toggle if not complete
     let actionHtml;
     if (isCompleted) {
@@ -260,14 +267,14 @@ function openItemSelection() {
 
 function renderOrderCategories(activeCat) {
   const cats = ['All', ...CATEGORIES];
-  const html = cats.map(c => 
-    `<div class="pill-option ${activeCat===c?'active':''}" style="font-size:13px; padding:6px 16px; border-radius:16px; flex-shrink:0;" onclick="selectOrderCat('${c}')">${c}</div>`
+  const html = cats.map(c =>
+    `<div class="pill-option ${activeCat === c ? 'active' : ''}" style="font-size:13px; padding:6px 16px; border-radius:16px; flex-shrink:0;" onclick="selectOrderCat('${c}')">${c}</div>`
   ).join('');
   document.getElementById('order-cat-pills').innerHTML = html;
   document.getElementById('order-cat-pills').dataset.active = activeCat;
 }
 
-window.selectOrderCat = function(cat) {
+window.selectOrderCat = function (cat) {
   renderOrderCategories(cat);
   renderOrderItems(document.getElementById('order-item-search').value, cat);
 }
@@ -281,18 +288,18 @@ function renderOrderItems(search, category) {
 
   container.innerHTML = items.map(m => {
     const qty = state.currentOrderFlow.items[m.id] || 0;
-    
+
     // Icon fallback based on category
     let emoji = '🍲';
-    if(m.category.includes('Starter')) emoji = '🍗';
-    if(m.category.includes('Bread')) emoji = '🫓';
-    if(m.category.includes('Biryani') || m.category.includes('Rice')) emoji = '🍚';
-    if(m.category.includes('Dessert')) emoji = '🍨';
-    if(m.category.includes('Beverage')) emoji = '🥤';
-    if(m.category.includes('Curry')) emoji = '🍛';
+    if (m.category.includes('Starter')) emoji = '🍗';
+    if (m.category.includes('Bread')) emoji = '🫓';
+    if (m.category.includes('Biryani') || m.category.includes('Rice')) emoji = '🍚';
+    if (m.category.includes('Dessert')) emoji = '🍨';
+    if (m.category.includes('Beverage')) emoji = '🥤';
+    if (m.category.includes('Curry')) emoji = '🍛';
 
-    let imgHtml = m.image 
-      ? `<img src="${m.image}" style="width:100%;height:100%;object-fit:cover;border-radius:14px">` 
+    let imgHtml = m.image
+      ? `<img src="${m.image}" style="width:100%;height:100%;object-fit:cover;border-radius:14px">`
       : emoji;
 
     return `
@@ -312,12 +319,12 @@ function renderOrderItems(search, category) {
   }).join('');
 }
 
-window.adjustQty = function(id, delta) {
+window.adjustQty = function (id, delta) {
   const cur = state.currentOrderFlow.items[id] || 0;
   const next = Math.max(0, cur + delta);
   if (next === 0) delete state.currentOrderFlow.items[id];
   else state.currentOrderFlow.items[id] = next;
-  
+
   const search = document.getElementById('order-item-search').value;
   const cat = document.getElementById('order-cat-pills').dataset.active;
   renderOrderItems(search, cat);
@@ -383,21 +390,21 @@ function renderMenuPage() {
   const q = document.getElementById('menu-search').value.toLowerCase();
   const list = document.getElementById('menu-list');
   let items = state.menu;
-  if(q) items = items.filter(i => i.name.toLowerCase().includes(q));
+  if (q) items = items.filter(i => i.name.toLowerCase().includes(q));
 
   document.getElementById('menu-count-badge').textContent = `${items.length} Items`;
 
   list.innerHTML = items.map(m => {
     // Emoji fallback
     let emoji = '🍲';
-    if(m.category.includes('Starter')) emoji = '🍗';
-    if(m.category.includes('Bread')) emoji = '🫓';
-    if(m.category.includes('Drinks')) emoji = '🥤';
-    if(m.category.includes('Dessert')) emoji = '🍨';
-    if(m.category.includes('Curry') || m.category.includes('Course')) emoji = '🍛';
-    
-    let imgHtml = m.image 
-      ? `<img src="${m.image}" style="width:100%;height:100%;object-fit:cover;border-radius:14px">` 
+    if (m.category.includes('Starter')) emoji = '🍗';
+    if (m.category.includes('Bread')) emoji = '🫓';
+    if (m.category.includes('Drinks')) emoji = '🥤';
+    if (m.category.includes('Dessert')) emoji = '🍨';
+    if (m.category.includes('Curry') || m.category.includes('Course')) emoji = '🍛';
+
+    let imgHtml = m.image
+      ? `<img src="${m.image}" style="width:100%;height:100%;object-fit:cover;border-radius:14px">`
       : emoji;
 
     return `
@@ -422,15 +429,15 @@ function renderMenuPage() {
 function openMenuForm(id = null) {
   editingMenuId = id;
   const m = id ? getMenuItemById(id) : null;
-  
+
   document.getElementById('menu-form-title').textContent = m ? 'Edit Menu Item' : 'Add Menu Item';
   document.getElementById('form-item-name').value = m ? m.name : '';
   document.getElementById('form-item-price').value = m ? m.price : '';
   document.getElementById('form-item-desc').value = '';
 
   const cat = m ? m.category : CATEGORIES[0];
-  document.getElementById('form-item-category-pills').innerHTML = CATEGORIES.map(c => 
-    `<div class="pill-option ${cat===c?'active':''}" onclick="setMenuFormCat(this, '${c}')">${c}</div>`
+  document.getElementById('form-item-category-pills').innerHTML = CATEGORIES.map(c =>
+    `<div class="pill-option ${cat === c ? 'active' : ''}" onclick="setMenuFormCat(this, '${c}')">${c}</div>`
   ).join('');
   document.getElementById('form-item-category-pills').dataset.val = cat;
 
@@ -439,7 +446,7 @@ function openMenuForm(id = null) {
   showScreen('screen-menu-form');
 }
 
-window.setMenuFormCat = function(el, val) {
+window.setMenuFormCat = function (el, val) {
   document.querySelectorAll('#form-item-category-pills .pill-option').forEach(p => p.classList.remove('active'));
   el.classList.add('active');
   document.getElementById('form-item-category-pills').dataset.val = val;
@@ -463,10 +470,10 @@ function saveMenuItem() {
   const cat = document.getElementById('form-item-category-pills').dataset.val;
   const type = document.getElementById('diet-veg').dataset.selected === 'true' ? 'Veg' : 'Non-Veg';
 
-  if(!name) { showToast('Name is required'); return; }
-  if(!price) { showToast('Valid price required'); return; }
+  if (!name) { showToast('Name is required'); return; }
+  if (!price) { showToast('Valid price required'); return; }
 
-  if(editingMenuId) {
+  if (editingMenuId) {
     const m = getMenuItemById(editingMenuId);
     m.name = name; m.price = price; m.category = cat; m.type = type;
     showToast('Saved successfully');
@@ -476,7 +483,7 @@ function saveMenuItem() {
     });
     showToast('Added to menu');
   }
-  
+
   saveState();
   hideScreen('screen-menu-form');
   renderMenuPage();
@@ -488,28 +495,28 @@ function saveMenuItem() {
 function renderAnalytics() {
   const today = new Date().toDateString();
   const orders = state.orders.filter(o => new Date(o.createdAt).toDateString() === today);
-  
+
   document.getElementById('metric-orders').textContent = orders.length;
   document.getElementById('metric-revenue').textContent = formatPrice(orders.reduce((sum, o) => sum + getOrderTotal(o), 0));
 
   let counts = {};
-  state.orders.forEach(o => o.items.forEach(i => counts[i.menuItemId] = (counts[i.menuItemId]||0) + i.qty));
-  const top = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
-  
-  if(top) {
+  state.orders.forEach(o => o.items.forEach(i => counts[i.menuItemId] = (counts[i.menuItemId] || 0) + i.qty));
+  const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+
+  if (top) {
     const mi = getMenuItemById(parseInt(top[0]));
     document.getElementById('mo-name').textContent = mi.name;
     document.getElementById('mo-count').textContent = `${top[1]} ordered`;
-    document.getElementById('mo-progress').style.width = Math.min((top[1]/20)*100, 100) + '%';
+    document.getElementById('mo-progress').style.width = Math.min((top[1] / 20) * 100, 100) + '%';
   }
 
   // Calendar render (dummy for UI)
   const days = document.getElementById('cal-grid-content');
   let dHtml = '';
   // Sun row headers included in HTML, append days
-  ['S','M','T','W','T','F','S'].forEach(d => dHtml += `<div class="cal-day-name">${d}</div>`);
-  for(let i=0; i<4; i++) dHtml += `<div class="cal-day empty"></div>`;
-  for(let i=1; i<=31; i++) dHtml += `<div class="cal-day ${i===12 ? 'today':''}">${i}</div>`;
+  ['S', 'M', 'T', 'W', 'T', 'F', 'S'].forEach(d => dHtml += `<div class="cal-day-name">${d}</div>`);
+  for (let i = 0; i < 4; i++) dHtml += `<div class="cal-day empty"></div>`;
+  for (let i = 1; i <= 31; i++) dHtml += `<div class="cal-day ${i === 12 ? 'today' : ''}">${i}</div>`;
   days.innerHTML = dHtml;
 }
 
@@ -519,25 +526,25 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadState();
   navigateTo('orders');
 
-  document.getElementById('nav-orders').addEventListener('click', ()=>navigateTo('orders'));
-  document.getElementById('nav-menu').addEventListener('click', ()=>navigateTo('menu'));
-  document.getElementById('nav-analytics').addEventListener('click', ()=>navigateTo('analytics'));
+  document.getElementById('nav-orders').addEventListener('click', () => navigateTo('orders'));
+  document.getElementById('nav-menu').addEventListener('click', () => navigateTo('menu'));
+  document.getElementById('nav-analytics').addEventListener('click', () => navigateTo('analytics'));
 
   document.getElementById('btn-new-order').addEventListener('click', openNewOrder);
-  document.getElementById('btn-back-table').addEventListener('click', ()=>hideScreen('screen-table'));
+  document.getElementById('btn-back-table').addEventListener('click', () => hideScreen('screen-table'));
   document.getElementById('btn-proceed-table').addEventListener('click', proceedToTable);
-  
-  document.getElementById('btn-back-items').addEventListener('click', ()=>hideScreen('screen-items'));
+
+  document.getElementById('btn-back-items').addEventListener('click', () => hideScreen('screen-items'));
   document.getElementById('btn-send-kitchen').addEventListener('click', sendToKitchen);
   document.getElementById('order-item-search').addEventListener('input', e => {
     renderOrderItems(e.target.value, document.getElementById('order-cat-pills').dataset.active);
   });
 
-  document.getElementById('btn-add-menu-item').addEventListener('click', ()=>openMenuForm());
-  document.getElementById('btn-back-menu-form').addEventListener('click', ()=>hideScreen('screen-menu-form'));
+  document.getElementById('btn-add-menu-item').addEventListener('click', () => openMenuForm());
+  document.getElementById('btn-back-menu-form').addEventListener('click', () => hideScreen('screen-menu-form'));
   document.getElementById('menu-form-btn').addEventListener('click', saveMenuItem);
   document.getElementById('menu-search').addEventListener('input', renderMenuPage);
 
-  document.getElementById('diet-veg').addEventListener('click', ()=>setDietToggle('Veg'));
-  document.getElementById('diet-nonveg').addEventListener('click', ()=>setDietToggle('Non-Veg'));
+  document.getElementById('diet-veg').addEventListener('click', () => setDietToggle('Veg'));
+  document.getElementById('diet-nonveg').addEventListener('click', () => setDietToggle('Non-Veg'));
 });

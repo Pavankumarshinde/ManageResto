@@ -1,14 +1,6 @@
 {
   "menu": [
     {
-      "id": 100,
-      "name": "kolhapuri",
-      "price": 20,
-      "category": "Curry",
-      "type": "Veg",
-      "image": null
-    },
-    {
       "id": 1,
       "name": "Harabara Kabab",
       "category": "Tandoori Starter",
@@ -396,20 +388,25 @@
   "orders": [
     {
       "id": 2,
-      "tableNumber": "1",
+      "tableNumber": "10",
       "items": [
         {
-          "menuItemId": 100,
-          "qty": 3,
+          "menuItemId": 1,
+          "qty": 1,
+          "status": "Preparing"
+        },
+        {
+          "menuItemId": 2,
+          "qty": 1,
           "status": "Preparing"
         }
       ],
       "paid": false,
-      "createdAt": "2026-03-12T04:56:05.863Z"
+      "createdAt": "2026-03-12T05:58:34.275Z"
     },
     {
       "id": 1,
-      "tableNumber": "3",
+      "tableNumber": "457",
       "items": [
         {
           "menuItemId": 1,
@@ -418,14 +415,24 @@
         },
         {
           "menuItemId": 2,
-          "qty": 3,
+          "qty": 1,
+          "status": "Served"
+        },
+        {
+          "menuItemId": 3,
+          "qty": 1,
+          "status": "Served"
+        },
+        {
+          "menuItemId": 4,
+          "qty": 1,
           "status": "Served"
         }
       ],
       "paid": true,
-      "createdAt": "2026-03-12T04:54:53.580Z"
+      "createdAt": "2026-03-12T05:54:06.193Z"
     }
   ],
   "nextOrderId": 3,
-  "nextMenuId": 101
+  "nextMenuId": 100
 }
