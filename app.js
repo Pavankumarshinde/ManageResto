@@ -2,9 +2,7 @@
 // ManageResto – Main Application Logic
 // ==========================================
 // Detect local vs deployed backend
-const API_BASE =
-  window.location.hostname === "https://manageresto-backend-zrrv.onrender.com";
-
+const API_BASE = "https://manageresto-backend-zrrv.onrender.com";
 let state = {
   menu: [],
   orders: [],
