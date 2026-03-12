@@ -3,6 +3,18 @@
 // ==========================================
 // Detect local vs deployed backend
 const API_BASE = "https://manageresto-backend-zrrv.onrender.com";
+
+async function fetchState() {
+  const res = await fetch(`${API_BASE}/api/state`);
+  const data = await res.json();
+  renderOrders(data.orders);
+}
+
+// Call once on page load
+fetchState();
+
+// Then poll every 3 seconds
+setInterval(fetchState, 3000);
 let state = {
   menu: [],
   orders: [],
