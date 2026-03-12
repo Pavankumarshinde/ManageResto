@@ -29,7 +29,7 @@ async function fetchState() {
 fetchState();
 
 // Then poll every 3 seconds
-setInterval(fetchState, 3000);
+setInterval(fetchState, 1000);
 let state = {
   menu: [],
   orders: [],
