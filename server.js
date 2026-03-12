@@ -32,6 +32,9 @@ function writeDB(data) {
   fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
 }
 
+app.get("/", (req, res) => {
+  res.send("ManageResto backend running");
+});
 // Get full state
 app.get('/api/state', (req, res) => {
   try {
@@ -47,13 +50,13 @@ app.post('/api/state', (req, res) => {
   try {
     const { menu, orders, nextOrderId, nextMenuId } = req.body;
     const currentDB = readDB();
-    
+
     // Only update provided fields to match current state
     if (menu) currentDB.menu = menu;
     if (orders) currentDB.orders = orders;
     if (nextOrderId) currentDB.nextOrderId = nextOrderId;
     if (nextMenuId) currentDB.nextMenuId = nextMenuId;
-    
+
     writeDB(currentDB);
     res.json({ success: true });
   } catch (error) {
