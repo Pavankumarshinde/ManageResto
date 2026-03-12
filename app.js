@@ -5,9 +5,24 @@
 const API_BASE = "https://manageresto-backend-zrrv.onrender.com";
 
 async function fetchState() {
-  const res = await fetch(`${API_BASE}/api/state`);
-  const data = await res.json();
-  renderOrders(data.orders);
+  try {
+    const res = await fetch(`${API_BASE}/api/state?ts=${Date.now()}`);
+    const data = await res.json();
+
+    // 🔴 Update local state
+    state.menu = data.menu || [];
+    state.orders = data.orders || [];
+    state.nextOrderId = data.nextOrderId || 1;
+    state.nextMenuId = data.nextMenuId || 100;
+
+    // 🔴 Re-render UI
+    if (currentPage === 'orders') renderOrders();
+    if (currentPage === 'menu') renderMenuPage();
+    if (currentPage === 'analytics') renderAnalytics();
+
+  } catch (err) {
+    console.error("Polling failed", err);
+  }
 }
 
 // Call once on page load
