@@ -16,6 +16,8 @@ const missingVars = requiredEnvVars.filter(v => !process.env[v]);
 if (missingVars.length > 0) {
   console.error('❌ CRITICAL ERROR: Missing required environment variables:', missingVars.join(', '));
   console.error('Please ensure these are set in your Render dashboard or .env file.');
+} else {
+  console.log(`📡 Attempting to connect to DB at: ${process.env.DB_HOST}:${process.env.DB_PORT || 3306}`);
 }
 
 // MySQL Connection using Sequelize
@@ -65,8 +67,35 @@ const RestoState = sequelize.define('RestoState', {
 
 // Sync Database
 sequelize.sync()
-  .then(() => console.log('MySQL Database & tables synced!'))
-  .catch(err => console.error('MySQL connection/sync error:', err));
+  .then(async () => {
+    console.log('✅ MySQL Database & tables synced!');
+    
+    // Check if we need to seed initial data
+    const count = await RestoState.count();
+    if (count === 0) {
+      console.log('🌱 Seeding initial state...');
+      // Try to get default menu from data.js if it exists, otherwise empty
+      let initialMenu = [];
+      try {
+        const defaultData = require('./data.js');
+        initialMenu = defaultData.initialMenu || [];
+      } catch (e) {
+        console.log('⚠️ Could not find data.js for seeding, starting empty.');
+      }
+      
+      await RestoState.create({
+        menu: initialMenu,
+        orders: [],
+        nextOrderId: 1,
+        nextMenuId: 100 + initialMenu.length
+      });
+      console.log('✅ Initial state seeded.');
+    }
+  })
+  .catch(err => {
+    console.error('❌ MySQL connection/sync error:', err.name, err.message);
+    if (err.parent) console.error('Parent Error:', err.parent.message);
+  });
 
 app.get("/", (req, res) => {
   res.send("ManageResto backend running with MySQL");
