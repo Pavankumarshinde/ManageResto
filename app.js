@@ -515,22 +515,42 @@ function saveMenuItem() {
 // ==========================================
 // ANALYTICS
 // ==========================================
+let selectedDate = new Date();
+
 function renderAnalytics() {
   const paidOrders = state.orders.filter(o => o.paid);
-  const todayDateStr = new Date().toDateString();
   
-  const todayOrders = paidOrders.filter(o => new Date(o.createdAt).toDateString() === todayDateStr);
-  
-  const todayRevenue = todayOrders.reduce((sum, o) => sum + getOrderTotal(o), 0);
+  // 1. Day Metrics (for selectedDate)
+  const selDayStr = selectedDate.toDateString();
+  const selDayOrders = paidOrders.filter(o => new Date(o.createdAt).toDateString() === selDayStr);
+  const selDayRevenue = selDayOrders.reduce((sum, o) => sum + getOrderTotal(o), 0);
+
+  // 2. Month Metrics (for selectedDate's month)
+  const selMonth = selectedDate.getMonth();
+  const selYear = selectedDate.getFullYear();
+  const monthOrders = paidOrders.filter(o => {
+    const d = new Date(o.createdAt);
+    return d.getMonth() === selMonth && d.getFullYear() === selYear;
+  });
+  const monthRevenue = monthOrders.reduce((sum, o) => sum + getOrderTotal(o), 0);
+
+  // 3. Global Metrics
   const totalRevenue = paidOrders.reduce((sum, o) => sum + getOrderTotal(o), 0);
   const avgOrderValue = paidOrders.length > 0 ? totalRevenue / paidOrders.length : 0;
 
-  document.getElementById('metric-orders').textContent = todayOrders.length;
-  document.getElementById('metric-revenue').textContent = formatPrice(todayRevenue);
+  // Update UI
+  document.getElementById('metric-orders').textContent = selDayOrders.length;
+  document.getElementById('metric-revenue').textContent = formatPrice(selDayRevenue);
+  document.getElementById('metric-month-revenue').textContent = formatPrice(monthRevenue);
   document.getElementById('metric-aov').textContent = formatPrice(avgOrderValue);
   document.getElementById('metric-total-revenue').textContent = formatPrice(totalRevenue);
 
-  // Most Ordered (Item) - Only from paid orders
+  // Updated Month/Year Header
+  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  document.getElementById('cal-month-text').textContent = months[selMonth];
+  document.getElementById('cal-year-text').textContent = selYear;
+
+  // Most Ordered (Item) - Only from paid orders (All-time or could be specific to selected date/month, sticking to all-time for consistency)
   let counts = {};
   paidOrders.forEach(o => o.items.forEach(i => counts[i.menuItemId] = (counts[i.menuItemId] || 0) + i.qty));
   const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
@@ -542,7 +562,6 @@ function renderAnalytics() {
       document.getElementById('mo-count').textContent = `${top[1]} ordered`;
       document.getElementById('mo-progress').style.width = Math.min((top[1] / 20) * 100, 100) + '%';
       
-      // Update icon based on category
       let emoji = '🍲';
       if (mi.category.includes('Starter')) emoji = '🍗';
       if (mi.category.includes('Bread')) emoji = '🫓';
@@ -558,13 +577,39 @@ function renderAnalytics() {
     document.getElementById('mo-progress').style.width = '0%';
   }
 
-  // Calendar render (dummy for UI)
-  const days = document.getElementById('cal-grid-content');
-  let dHtml = '';
-  ['S', 'M', 'T', 'W', 'T', 'F', 'S'].forEach(d => dHtml += `<div class="cal-day-name">${d}</div>`);
-  for (let i = 0; i < 4; i++) dHtml += `<div class="cal-day empty"></div>`;
-  for (let i = 1; i <= 31; i++) dHtml += `<div class="cal-day ${i === 12 ? 'today' : ''}">${i}</div>`;
-  days.innerHTML = dHtml;
+  // Calendar render (Live for current month)
+  const grid = document.getElementById('cal-grid-content');
+  let html = '';
+  ['S', 'M', 'T', 'W', 'T', 'F', 'S'].forEach(d => html += `<div class="cal-day-name">${d}</div>`);
+  
+  // Calculate first day and days in month
+  const firstDay = new Date(selYear, selMonth, 1).getDay();
+  const daysInMonth = new Date(selYear, selMonth + 1, 0).getDate();
+  const today = new Date();
+
+  // Padding
+  for (let i = 0; i < firstDay; i++) html += `<div class="cal-day empty"></div>`;
+  
+  // Days
+  for (let i = 1; i <= daysInMonth; i++) {
+    const isToday = today.getDate() === i && today.getMonth() === selMonth && today.getFullYear() === selYear;
+    const isSelected = selectedDate.getDate() === i && selectedDate.getMonth() === selMonth && selectedDate.getFullYear() === selYear;
+    
+    html += `<div class="cal-day ${isToday ? 'today' : ''} ${isSelected ? 'active' : ''}" 
+                  onclick="selectAnalyticsDate(${i})">${i}</div>`;
+  }
+  grid.innerHTML = html;
+}
+
+window.selectAnalyticsDate = function(day) {
+  selectedDate.setDate(day);
+  renderAnalytics();
+}
+
+// Month Navigation
+window.changeAnalyticsMonth = function(delta) {
+  selectedDate.setMonth(selectedDate.getMonth() + delta);
+  renderAnalytics();
 }
 
 

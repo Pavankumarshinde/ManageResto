@@ -746,7 +746,18 @@ textarea.form-input {
 }
 .cal-day.empty { visibility: hidden; }
 .cal-day.today {
-  background: var(--primary); color: white;
+  border: 2px solid var(--primary);
+  color: var(--primary);
+  font-weight: 800;
+}
+.cal-day.active {
+  background: var(--primary);
+  color: white;
+  box-shadow: 0 4px 10px rgba(135, 31, 40, 0.3);
+}
+.cal-day:not(.empty):hover {
+  background: var(--primary-light);
+  cursor: pointer;
 }
 
 /* ===== MODAL ===== */

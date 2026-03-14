@@ -82,12 +82,12 @@
       <!-- Custom Calendar -->
       <div class="card calendar-card">
         <div class="cal-month-nav">
-          <button class="cal-nav-btn">‹</button>
+          <button class="cal-nav-btn" onclick="changeAnalyticsMonth(-1)">‹</button>
           <div>
             <div class="cal-year" id="cal-year-text">2026</div>
             <div class="cal-month" id="cal-month-text">March</div>
           </div>
-          <button class="cal-nav-btn">›</button>
+          <button class="cal-nav-btn" onclick="changeAnalyticsMonth(1)">›</button>
         </div>
         
         <div class="cal-grid" id="cal-grid-content">
@@ -101,11 +101,11 @@
       <!-- Metrics Row 1 -->
       <div class="metric-row">
         <div class="card analytics-metric">
-          <div class="analytics-metric-title">📦 Total Orders (Paid)</div>
+          <div class="analytics-metric-title">📦 Orders (Selected Day)</div>
           <div class="analytics-metric-value" id="metric-orders">0</div>
         </div>
         <div class="card analytics-metric">
-          <div class="analytics-metric-title">💰 Today's Revenue</div>
+          <div class="analytics-metric-title">💰 Day's Revenue</div>
           <div class="analytics-metric-value" id="metric-revenue">₹0.00</div>
         </div>
       </div>
@@ -113,10 +113,18 @@
       <!-- Metrics Row 2 -->
       <div class="metric-row" style="margin-top:12px;">
         <div class="card analytics-metric">
+          <div class="analytics-metric-title">📅 Month's Revenue</div>
+          <div class="analytics-metric-value" id="metric-month-revenue">₹0.00</div>
+        </div>
+        <div class="card analytics-metric">
           <div class="analytics-metric-title">📈 Avg Order Value</div>
           <div class="analytics-metric-value" id="metric-aov">₹0.00</div>
         </div>
-        <div class="card analytics-metric">
+      </div>
+
+      <!-- Metrics Row 3 -->
+      <div class="metric-row" style="margin-top:12px;">
+        <div class="card analytics-metric" style="flex:1;">
           <div class="analytics-metric-title">🌍 All-Time Revenue</div>
           <div class="analytics-metric-value" id="metric-total-revenue">₹0.00</div>
         </div>
