@@ -516,27 +516,51 @@ function saveMenuItem() {
 // ANALYTICS
 // ==========================================
 function renderAnalytics() {
-  const today = new Date().toDateString();
-  const orders = state.orders.filter(o => new Date(o.createdAt).toDateString() === today);
+  const paidOrders = state.orders.filter(o => o.paid);
+  const todayDateStr = new Date().toDateString();
+  
+  const todayOrders = paidOrders.filter(o => new Date(o.createdAt).toDateString() === todayDateStr);
+  
+  const todayRevenue = todayOrders.reduce((sum, o) => sum + getOrderTotal(o), 0);
+  const totalRevenue = paidOrders.reduce((sum, o) => sum + getOrderTotal(o), 0);
+  const avgOrderValue = paidOrders.length > 0 ? totalRevenue / paidOrders.length : 0;
 
-  document.getElementById('metric-orders').textContent = orders.length;
-  document.getElementById('metric-revenue').textContent = formatPrice(orders.reduce((sum, o) => sum + getOrderTotal(o), 0));
+  document.getElementById('metric-orders').textContent = todayOrders.length;
+  document.getElementById('metric-revenue').textContent = formatPrice(todayRevenue);
+  document.getElementById('metric-aov').textContent = formatPrice(avgOrderValue);
+  document.getElementById('metric-total-revenue').textContent = formatPrice(totalRevenue);
 
+  // Most Ordered (Item) - Only from paid orders
   let counts = {};
-  state.orders.forEach(o => o.items.forEach(i => counts[i.menuItemId] = (counts[i.menuItemId] || 0) + i.qty));
+  paidOrders.forEach(o => o.items.forEach(i => counts[i.menuItemId] = (counts[i.menuItemId] || 0) + i.qty));
   const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
 
   if (top) {
     const mi = getMenuItemById(parseInt(top[0]));
-    document.getElementById('mo-name').textContent = mi.name;
-    document.getElementById('mo-count').textContent = `${top[1]} ordered`;
-    document.getElementById('mo-progress').style.width = Math.min((top[1] / 20) * 100, 100) + '%';
+    if (mi) {
+      document.getElementById('mo-name').textContent = mi.name;
+      document.getElementById('mo-count').textContent = `${top[1]} ordered`;
+      document.getElementById('mo-progress').style.width = Math.min((top[1] / 20) * 100, 100) + '%';
+      
+      // Update icon based on category
+      let emoji = '🍲';
+      if (mi.category.includes('Starter')) emoji = '🍗';
+      if (mi.category.includes('Bread')) emoji = '🫓';
+      if (mi.category.includes('Biryani') || mi.category.includes('Rice')) emoji = '🍚';
+      if (mi.category.includes('Dessert')) emoji = '🍨';
+      if (mi.category.includes('Beverage')) emoji = '🥤';
+      if (mi.category.includes('Curry')) emoji = '🍛';
+      document.getElementById('mo-icon').textContent = emoji;
+    }
+  } else {
+    document.getElementById('mo-name').textContent = '--';
+    document.getElementById('mo-count').textContent = '0 ordered';
+    document.getElementById('mo-progress').style.width = '0%';
   }
 
   // Calendar render (dummy for UI)
   const days = document.getElementById('cal-grid-content');
   let dHtml = '';
-  // Sun row headers included in HTML, append days
   ['S', 'M', 'T', 'W', 'T', 'F', 'S'].forEach(d => dHtml += `<div class="cal-day-name">${d}</div>`);
   for (let i = 0; i < 4; i++) dHtml += `<div class="cal-day empty"></div>`;
   for (let i = 1; i <= 31; i++) dHtml += `<div class="cal-day ${i === 12 ? 'today' : ''}">${i}</div>`;
