@@ -2,7 +2,7 @@
 // ManageResto – Main Application Logic
 // ==========================================
 // Detect local vs deployed backend
-const API_BASE = "https://manageresto-backend-zrrv.onrender.com";
+const API_BASE = "https://manageresto.onrender.com";
 
 async function fetchState() {
   try {
