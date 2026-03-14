@@ -9,7 +9,14 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// Validate Environment Variables
+const requiredEnvVars = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
+const missingVars = requiredEnvVars.filter(v => !process.env[v]);
 
+if (missingVars.length > 0) {
+  console.error('❌ CRITICAL ERROR: Missing required environment variables:', missingVars.join(', '));
+  console.error('Please ensure these are set in your Render dashboard or .env file.');
+}
 
 // MySQL Connection using Sequelize
 const sequelize = new Sequelize(
@@ -22,7 +29,10 @@ const sequelize = new Sequelize(
     dialect: 'mysql',
     logging: false,
     dialectOptions: {
-      connectTimeout: 10000 // 10 seconds timeout for better error reporting on Render
+      connectTimeout: 10000,
+      ssl: {
+        rejectUnauthorized: false // Required for many cloud providers like Aiven/TiDB
+      }
     }
   }
 );
