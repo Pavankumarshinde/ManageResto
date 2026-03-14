@@ -1,73 +1,108 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const fs = require('fs');
-const path = require('path');
+const { Sequelize, DataTypes } = require('sequelize');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const DB_FILE = path.join(__dirname, 'database.json');
 
 app.use(cors());
 app.use(express.json());
 
-// Initialize database if it doesn't exist
-if (!fs.existsSync(DB_FILE)) {
-  const initialData = {
-    menu: [], // Frontend will initialize with DEFAULT_MENU if empty
-    orders: [],
-    nextOrderId: 1,
-    nextMenuId: 100
-  };
-  fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2));
-}
+// MySQL Connection using Sequelize
+const sequelize = new Sequelize(
+  process.env.DB_NAME,
+  process.env.DB_USER,
+  process.env.DB_PASSWORD,
+  {
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT || 3306,
+    dialect: 'mysql',
+    logging: false, // Set to console.log to see SQL queries
+  }
+);
 
-// Read database
-function readDB() {
-  const data = fs.readFileSync(DB_FILE, 'utf8');
-  return JSON.parse(data);
-}
+// Define Model
+const RestoState = sequelize.define('RestoState', {
+  menu: {
+    type: DataTypes.TEXT('long'),
+    get() {
+      const val = this.getDataValue('menu');
+      return val ? JSON.parse(val) : [];
+    },
+    set(val) {
+      this.setDataValue('menu', JSON.stringify(val));
+    }
+  },
+  orders: {
+    type: DataTypes.TEXT('long'),
+    get() {
+      const val = this.getDataValue('orders');
+      return val ? JSON.parse(val) : [];
+    },
+    set(val) {
+      this.setDataValue('orders', JSON.stringify(val));
+    }
+  },
+  nextOrderId: { type: DataTypes.INTEGER, defaultValue: 1 },
+  nextMenuId: { type: DataTypes.INTEGER, defaultValue: 100 }
+});
 
-// Write database
-function writeDB(data) {
-  fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
-}
+// Sync Database
+sequelize.sync()
+  .then(() => console.log('MySQL Database & tables synced!'))
+  .catch(err => console.error('MySQL connection/sync error:', err));
 
 app.get("/", (req, res) => {
-  res.send("ManageResto backend running");
+  res.send("ManageResto backend running with MySQL");
 });
+
 // Get full state
-app.get('/api/state', (req, res) => {
+app.get('/api/state', async (req, res) => {
   try {
-    const data = readDB();
-    res.json(data);
+    let state = await RestoState.findOne({ order: [['id', 'DESC']] });
+    if (!state) {
+      // Initialize if empty
+      state = await RestoState.create({
+        menu: [],
+        orders: [],
+        nextOrderId: 1,
+        nextMenuId: 100
+      });
+    }
+    res.json(state);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to read database' });
+    console.error('Fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch state from MySQL' });
   }
 });
 
 // Update full state
-app.post('/api/state', (req, res) => {
+app.post('/api/state', async (req, res) => {
   try {
     const { menu, orders, nextOrderId, nextMenuId } = req.body;
-    const currentDB = readDB();
+    
+    let state = await RestoState.findOne({ order: [['id', 'DESC']] });
+    if (!state) {
+      state = await RestoState.create({});
+    }
 
-    // Only update provided fields to match current state
-    if (menu) currentDB.menu = menu;
-    if (orders) currentDB.orders = orders;
-    if (nextOrderId) currentDB.nextOrderId = nextOrderId;
-    if (nextMenuId) currentDB.nextMenuId = nextMenuId;
+    if (menu !== undefined) state.menu = menu;
+    if (orders !== undefined) state.orders = orders;
+    if (nextOrderId !== undefined) state.nextOrderId = nextOrderId;
+    if (nextMenuId !== undefined) state.nextMenuId = nextMenuId;
 
-    writeDB(currentDB);
-    res.json({ success: true });
+    await state.save();
+    res.json({ success: true, state });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to write database' });
+    console.error('Update error:', error);
+    res.status(500).json({ error: 'Failed to update state in MySQL' });
   }
 });
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`========================================`);
-  console.log(`ManageResto Backend Running!`);
+  console.log(`ManageResto Backend Running! (MySQL)`);
   console.log(`Access the API at http://localhost:${PORT}`);
-  console.log(`Other devices on the network can connect to your local IP address.`);
   console.log(`========================================`);
 });
