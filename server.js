@@ -9,6 +9,8 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+
+
 // MySQL Connection using Sequelize
 const sequelize = new Sequelize(
   process.env.DB_NAME,
@@ -18,7 +20,10 @@ const sequelize = new Sequelize(
     host: process.env.DB_HOST,
     port: process.env.DB_PORT || 3306,
     dialect: 'mysql',
-    logging: false, // Set to console.log to see SQL queries
+    logging: false,
+    dialectOptions: {
+      connectTimeout: 10000 // 10 seconds timeout for better error reporting on Render
+    }
   }
 );
 
@@ -81,7 +86,7 @@ app.get('/api/state', async (req, res) => {
 app.post('/api/state', async (req, res) => {
   try {
     const { menu, orders, nextOrderId, nextMenuId } = req.body;
-    
+
     let state = await RestoState.findOne({ order: [['id', 'DESC']] });
     if (!state) {
       state = await RestoState.create({});
