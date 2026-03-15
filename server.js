@@ -70,32 +70,44 @@ sequelize.sync()
   .then(async () => {
     console.log('✅ MySQL Database & tables synced!');
     
-    // Check if we need to seed initial data (if no records OR if the only record has an empty menu)
-    let state = await RestoState.findOne({ order: [['id', 'DESC']] });
-    
-    if (!state || (state.menu.length === 0 && state.orders.length === 0)) {
-      console.log('🌱 Seeding initial state...');
-      let initialMenu = [];
-      try {
-        const { DEFAULT_MENU } = require('./data.js');
-        initialMenu = DEFAULT_MENU || [];
-      } catch (e) {
-        console.log('⚠️ Could not find DEFAULT_MENU in data.js, starting empty.', e.message);
-      }
+    try {
+      let state = await RestoState.findOne({ order: [['id', 'DESC']] });
+      const menuIsEmpty = !state || (Array.isArray(state.menu) && state.menu.length === 0);
       
-      if (!state) {
-        state = await RestoState.create({
-          menu: initialMenu,
-          orders: [],
-          nextOrderId: 1,
-          nextMenuId: 100 + initialMenu.length
-        });
+      if (menuIsEmpty) {
+        console.log('🌱 Seeding initial state because menu is empty...');
+        let initialMenu = [];
+        try {
+          const data = require('./data.js');
+          initialMenu = data.DEFAULT_MENU || [];
+          console.log(`📦 Loaded ${initialMenu.length} items from data.js`);
+        } catch (e) {
+          console.error('❌ Could not load data.js:', e.message);
+        }
+        
+        if (initialMenu.length > 0) {
+          if (!state) {
+            state = await RestoState.create({
+              menu: initialMenu,
+              orders: [],
+              nextOrderId: 1,
+              nextMenuId: 100 + initialMenu.length
+            });
+          } else {
+            console.log('🔄 Updating existing empty record (ID: ' + state.id + ') with default menu');
+            state.menu = initialMenu;
+            state.nextMenuId = 100 + initialMenu.length;
+            await state.save();
+          }
+          console.log('✅ Seeding complete.');
+        } else {
+          console.log('⚠️ No items to seed.');
+        }
       } else {
-        state.menu = initialMenu;
-        state.nextMenuId = 100 + initialMenu.length;
-        await state.save();
+        console.log(`📊 Database already has ${state.menu.length} menu items.`);
       }
-      console.log('✅ Initial state seeded with ' + initialMenu.length + ' items.');
+    } catch (dbErr) {
+      console.error('❌ Error during seeding check:', dbErr.message);
     }
   })
   .catch(err => {
