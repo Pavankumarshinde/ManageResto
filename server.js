@@ -22,18 +22,18 @@ if (missingVars.length > 0) {
 
 // MySQL Connection using Sequelize
 const sequelize = new Sequelize(
-  process.env.DB_NAME,
-  process.env.DB_USER,
-  process.env.DB_PASSWORD,
+  (process.env.DB_NAME || '').trim(),
+  (process.env.DB_USER || '').trim(),
+  (process.env.DB_PASSWORD || '').trim(),
   {
-    host: process.env.DB_HOST,
+    host: (process.env.DB_HOST || '').trim(),
     port: process.env.DB_PORT || 3306,
     dialect: 'mysql',
     logging: false,
     dialectOptions: {
       connectTimeout: 10000,
       ssl: {
-        rejectUnauthorized: false // Required for many cloud providers like Aiven/TiDB
+        rejectUnauthorized: false
       }
     }
   }
