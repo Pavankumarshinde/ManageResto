@@ -157,8 +157,16 @@ let currentPage = 'orders';
 function navigateTo(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
+
   document.getElementById(`page-${page}`).classList.add('active');
-  document.getElementById(`nav-${page}`).classList.add('active');
+  
+  const bottomNav = document.getElementById(`nav-${page}`);
+  if (bottomNav) bottomNav.classList.add('active');
+  
+  const sideNav = document.getElementById(`side-${page}`);
+  if (sideNav) sideNav.classList.add('active');
+
   currentPage = page;
 
   if (page === 'orders') renderOrders();
