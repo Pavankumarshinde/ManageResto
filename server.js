@@ -116,7 +116,7 @@ sequelize.sync()
   });
 
 app.get("/", (req, res) => {
-  res.send("ManageResto backend running with MySQL");
+  res.send("ManageResto backend running with MySQL (v3 - Seeding Fixed)");
 });
 
 // Get full state
