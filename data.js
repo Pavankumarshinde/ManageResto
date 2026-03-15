@@ -78,3 +78,7 @@ const CATEGORIES = [
   "Dessert",
   "Beverage",
 ];
+
+if (typeof module !== 'undefined') {
+  module.exports = { DEFAULT_MENU, CATEGORIES };
+}

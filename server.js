@@ -70,26 +70,32 @@ sequelize.sync()
   .then(async () => {
     console.log('✅ MySQL Database & tables synced!');
     
-    // Check if we need to seed initial data
-    const count = await RestoState.count();
-    if (count === 0) {
+    // Check if we need to seed initial data (if no records OR if the only record has an empty menu)
+    let state = await RestoState.findOne({ order: [['id', 'DESC']] });
+    
+    if (!state || (state.menu.length === 0 && state.orders.length === 0)) {
       console.log('🌱 Seeding initial state...');
-      // Try to get default menu from data.js if it exists, otherwise empty
       let initialMenu = [];
       try {
-        const defaultData = require('./data.js');
-        initialMenu = defaultData.initialMenu || [];
+        const { DEFAULT_MENU } = require('./data.js');
+        initialMenu = DEFAULT_MENU || [];
       } catch (e) {
-        console.log('⚠️ Could not find data.js for seeding, starting empty.');
+        console.log('⚠️ Could not find DEFAULT_MENU in data.js, starting empty.', e.message);
       }
       
-      await RestoState.create({
-        menu: initialMenu,
-        orders: [],
-        nextOrderId: 1,
-        nextMenuId: 100 + initialMenu.length
-      });
-      console.log('✅ Initial state seeded.');
+      if (!state) {
+        state = await RestoState.create({
+          menu: initialMenu,
+          orders: [],
+          nextOrderId: 1,
+          nextMenuId: 100 + initialMenu.length
+        });
+      } else {
+        state.menu = initialMenu;
+        state.nextMenuId = 100 + initialMenu.length;
+        await state.save();
+      }
+      console.log('✅ Initial state seeded with ' + initialMenu.length + ' items.');
     }
   })
   .catch(err => {
