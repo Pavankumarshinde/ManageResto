@@ -6,9 +6,12 @@ const API_BASE = "https://manageresto.onrender.com";
 let isSyncing = false;
 let lastSaveTime = 0;
 let fetchController = null;
+let saveQueue = [];
+let isProcessingQueue = false;
 
 async function fetchState() {
-  if (isSyncing || Date.now() - lastSaveTime < 2500) return;
+  // Block polling if a save is in flight OR we recently saved (5s window)
+  if (isSyncing || isProcessingQueue || (Date.now() - lastSaveTime < 5000)) return;
   
   // Abort any previous fetch if still running
   if (fetchController) fetchController.abort();
@@ -20,8 +23,8 @@ async function fetchState() {
     });
     const data = await res.json();
 
-    // Final guard: Don't apply if we started syncing while this fetch was in flight
-    if (isSyncing || Date.now() - lastSaveTime < 2500) return;
+    // Final guard if we started a save while the fetch was returning
+    if (isSyncing || isProcessingQueue || (Date.now() - lastSaveTime < 5000)) return;
 
     // 🔴 Update local state
     state.menu = data.menu || [];
@@ -42,11 +45,8 @@ async function fetchState() {
   }
 }
 
-// Call once on page load
-fetchState();
-
-// Then poll every 3 seconds
-setInterval(fetchState, 1000);
+// Then poll every 3 seconds (cleaner for free tier)
+setInterval(fetchState, 3000);
 let state = {
   menu: [],
   orders: [],
@@ -62,35 +62,53 @@ let state = {
 
 // ===== PERSISTENCE (Node.js API) =====
 async function saveState() {
-  if (fetchController) fetchController.abort(); // Kill polling immediately
+  // Push to queue to prevent concurrent POST races
+  saveQueue.push({
+    menu: [...state.menu],
+    orders: JSON.parse(JSON.stringify(state.orders)),
+    nextOrderId: state.nextOrderId,
+    nextMenuId: state.nextMenuId
+  });
   
-  isSyncing = true;
-  lastSaveTime = Date.now();
-  
+  processSaveQueue();
+}
+
+async function processSaveQueue() {
+  if (isProcessingQueue) return;
+  if (saveQueue.length === 0) return;
+
+  isProcessingQueue = true;
+  if (fetchController) fetchController.abort(); // Kill polling
+
+  // Always take the LATEST state from the queue
+  const payload = saveQueue[saveQueue.length - 1];
+  saveQueue = []; // Clear queue since we have the latest
+
   try {
+    lastSaveTime = Date.now();
     const res = await fetch(`${API_BASE}/api/state`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        menu: state.menu,
-        orders: state.orders,
-        nextOrderId: state.nextOrderId,
-        nextMenuId: state.nextMenuId
-      })
+      body: JSON.stringify(payload)
     });
+    
     if (!res.ok) throw new Error('Save failed');
     
-    // Successful save: Update lastSaveTime to give server 
-    // real-time to propagate before next poll
+    // Successful save: Update lastSaveTime to block polls for 5s
     lastSaveTime = Date.now(); 
   } catch (err) {
-    console.error('Failed to save state to server', err);
-    showToast('⚠️ Sync failed. Reconnecting...');
+    if (err.name !== 'AbortError') {
+      console.error('Failed to save state to server', err);
+      showToast('⚠️ Sync failed. Retrying...');
+      // Re-add payload to retry
+      saveQueue.unshift(payload);
+    }
   } finally {
-    // Hold the lock for a generous 1 second after response
-    setTimeout(() => {
-      isSyncing = false;
-    }, 1000);
+    isProcessingQueue = false;
+    // If more work added while we were saving, process it
+    if (saveQueue.length > 0) {
+      setTimeout(processSaveQueue, 100);
+    }
   }
 }
 
