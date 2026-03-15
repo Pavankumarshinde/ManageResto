@@ -684,8 +684,39 @@ window.changeAnalyticsMonth = function (delta) {
 }
 
 
+// ==========================================
+// SPLASH SCREEN & TYPEWRITER
+// ==========================================
+function startSplashScreen() {
+  const text = "ManageResto is a comprehensive restaurant management application designed for waiters, managers, and owners to streamline daily operations.";
+  const container = document.getElementById('typewriter-text');
+  let i = 0;
+
+  function type() {
+    if (i < text.length) {
+      container.textContent += text.charAt(i);
+      i++;
+      setTimeout(type, 35); // Adjust speed here
+    }
+  }
+
+  // Start typing
+  type();
+
+  // Lifecycle: 10 seconds total
+  setTimeout(() => {
+    const splash = document.getElementById('splash-screen');
+    splash.classList.add('fade-out');
+    // Remove from DOM after transition to free resources
+    setTimeout(() => {
+      splash.remove();
+    }, 800);
+  }, 10000);
+}
+
 // INIT
 document.addEventListener('DOMContentLoaded', async () => {
+  startSplashScreen();
   await loadState();
   navigateTo('orders');
 
