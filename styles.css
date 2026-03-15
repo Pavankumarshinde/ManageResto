@@ -109,7 +109,7 @@ body {
 /* ===== SCREEN OVERLAY (for new order / edit screens) ===== */
 .screen {
   display: none;
-  position: fixed;
+  position: absolute;
   inset: 0;
   background: var(--bg-app);
   z-index: 200;
