@@ -420,6 +420,12 @@ function sendToKitchen() {
   const entries = Object.entries(items);
   if (entries.length === 0) { showToast('Add items first'); return; }
 
+  const confirmMsg = editingOrderId 
+    ? "Are you sure? Items added to this order cannot be cancelled once sent." 
+    : "Are you sure? Items sent to the kitchen can't be cancelled. Are you sure?";
+
+  if (!window.confirm(confirmMsg)) return;
+
   if (editingOrderId) {
     const o = state.orders.find(x => x.id === editingOrderId);
     if (o) {
@@ -546,6 +552,12 @@ function saveMenuItem() {
 
   if (!name) { showToast('Name is required'); return; }
   if (!price) { showToast('Valid price required'); return; }
+
+  const confirmMsg = editingMenuId 
+    ? "Are you sure you want to save changes to this menu item?" 
+    : "Are you sure you want to add this new item to the menu?";
+
+  if (!window.confirm(confirmMsg)) return;
 
   if (editingMenuId) {
     const m = getMenuItemById(editingMenuId);
