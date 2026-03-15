@@ -12,7 +12,7 @@ let isProcessingQueue = false;
 async function fetchState() {
   // Block polling if a save is in flight OR we recently saved (5s window)
   if (isSyncing || isProcessingQueue || (Date.now() - lastSaveTime < 5000)) return;
-  
+
   // Abort any previous fetch if still running
   if (fetchController) fetchController.abort();
   fetchController = new AbortController();
@@ -45,8 +45,8 @@ async function fetchState() {
   }
 }
 
-// Then poll every 3 seconds (cleaner for free tier)
-setInterval(fetchState, 3000);
+// Then poll every 1 seconds (cleaner for free tier)
+setInterval(fetchState, 1000);
 let state = {
   menu: [],
   orders: [],
@@ -69,7 +69,7 @@ async function saveState() {
     nextOrderId: state.nextOrderId,
     nextMenuId: state.nextMenuId
   });
-  
+
   processSaveQueue();
 }
 
@@ -91,11 +91,11 @@ async function processSaveQueue() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    
+
     if (!res.ok) throw new Error('Save failed');
-    
+
     // Successful save: Update lastSaveTime to block polls for 5s
-    lastSaveTime = Date.now(); 
+    lastSaveTime = Date.now();
   } catch (err) {
     if (err.name !== 'AbortError') {
       console.error('Failed to save state to server', err);
@@ -420,8 +420,8 @@ function sendToKitchen() {
   const entries = Object.entries(items);
   if (entries.length === 0) { showToast('Add items first'); return; }
 
-  const confirmMsg = editingOrderId 
-    ? "Are you sure? Items added to this order cannot be cancelled once sent." 
+  const confirmMsg = editingOrderId
+    ? "Are you sure? Items added to this order cannot be cancelled once sent."
     : "Are you sure? Items sent to the kitchen can't be cancelled. Are you sure?";
 
   if (!window.confirm(confirmMsg)) return;
@@ -532,7 +532,7 @@ window.setMenuFormCat = function (el, val) {
   document.getElementById('form-item-category-pills').dataset.val = val;
 }
 
-window.setDietToggle = function(type) {
+window.setDietToggle = function (type) {
   const veg = document.getElementById('diet-veg');
   const non = document.getElementById('diet-nonveg');
   if (type === 'Veg') {
@@ -553,8 +553,8 @@ function saveMenuItem() {
   if (!name) { showToast('Name is required'); return; }
   if (!price) { showToast('Valid price required'); return; }
 
-  const confirmMsg = editingMenuId 
-    ? "Are you sure you want to save changes to this menu item?" 
+  const confirmMsg = editingMenuId
+    ? "Are you sure you want to save changes to this menu item?"
     : "Are you sure you want to add this new item to the menu?";
 
   if (!window.confirm(confirmMsg)) return;
@@ -582,7 +582,7 @@ let selectedDate = new Date();
 
 function renderAnalytics() {
   const paidOrders = state.orders.filter(o => o.paid);
-  
+
   // 1. Day Metrics (for selectedDate)
   const selDayStr = selectedDate.toDateString();
   const selDayOrders = paidOrders.filter(o => new Date(o.createdAt).toDateString() === selDayStr);
@@ -624,7 +624,7 @@ function renderAnalytics() {
       document.getElementById('mo-name').textContent = mi.name;
       document.getElementById('mo-count').textContent = `${top[1]} ordered`;
       document.getElementById('mo-progress').style.width = Math.min((top[1] / 20) * 100, 100) + '%';
-      
+
       let emoji = '🍲';
       if (mi.category.includes('Starter')) emoji = '🍗';
       if (mi.category.includes('Bread')) emoji = '🫓';
@@ -644,7 +644,7 @@ function renderAnalytics() {
   const grid = document.getElementById('cal-grid-content');
   let html = '';
   ['S', 'M', 'T', 'W', 'T', 'F', 'S'].forEach(d => html += `<div class="cal-day-name">${d}</div>`);
-  
+
   // Calculate first day and days in month
   const firstDay = new Date(selYear, selMonth, 1).getDay();
   const daysInMonth = new Date(selYear, selMonth + 1, 0).getDate();
@@ -652,25 +652,25 @@ function renderAnalytics() {
 
   // Padding
   for (let i = 0; i < firstDay; i++) html += `<div class="cal-day empty"></div>`;
-  
+
   // Days
   for (let i = 1; i <= daysInMonth; i++) {
     const isToday = today.getDate() === i && today.getMonth() === selMonth && today.getFullYear() === selYear;
     const isSelected = selectedDate.getDate() === i && selectedDate.getMonth() === selMonth && selectedDate.getFullYear() === selYear;
-    
+
     html += `<div class="cal-day ${isToday ? 'today' : ''} ${isSelected ? 'active' : ''}" 
                   onclick="selectAnalyticsDate(${i})">${i}</div>`;
   }
   grid.innerHTML = html;
 }
 
-window.selectAnalyticsDate = function(day) {
+window.selectAnalyticsDate = function (day) {
   selectedDate.setDate(day);
   renderAnalytics();
 }
 
 // Month Navigation
-window.changeAnalyticsMonth = function(delta) {
+window.changeAnalyticsMonth = function (delta) {
   selectedDate.setMonth(selectedDate.getMonth() + delta);
   renderAnalytics();
 }
