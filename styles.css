@@ -945,7 +945,7 @@ textarea.form-input {
   position: fixed;
   inset: 0;
   z-index: 1000;
-  background: linear-gradient(135deg, var(--primary) 0%, #4a0f15 100%);
+  background: var(--bg-app);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -973,30 +973,50 @@ textarea.form-input {
   font-family: var(--font-serif);
   font-size: 48px;
   font-weight: 800;
-  color: white;
+  color: var(--primary);
   margin-bottom: 24px;
   letter-spacing: -1px;
 }
 
 .splash-text {
   font-family: var(--font-sans);
-  font-size: 20px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
   line-height: 1.6;
-  min-height: 3.2em; /* Prevents layout jump */
+  min-height: 3.2em;
+  margin-bottom: 32px;
+}
+
+.splash-progress {
+  width: 100%;
+  max-width: 400px;
+  height: 6px;
+  background: var(--primary-soft);
+  border-radius: var(--radius-full);
+  margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--border-dark);
+}
+
+#splash-bar {
+  width: 0%;
+  height: 100%;
+  background: var(--primary);
+  border-radius: var(--radius-full);
+  transition: width 0.1s linear;
 }
 
 /* Glass effect for text container on large screens */
 @media (min-width: 768px) {
   .splash-content {
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(10px);
-    padding: 60px;
-    border-radius: var(--radius-xl);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: white;
+    padding: 80px 60px;
+    border-radius: 40px;
+    box-shadow: 0 30px 60px rgba(135, 31, 40, 0.1);
+    border: 1px solid var(--border-dark);
   }
   .splash-logo { font-size: 64px; }
-  .splash-text { font-size: 24px; }
+  .splash-text { font-size: 22px; }
 }
 

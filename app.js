@@ -160,10 +160,10 @@ function navigateTo(page) {
   document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
 
   document.getElementById(`page-${page}`).classList.add('active');
-  
+
   const bottomNav = document.getElementById(`nav-${page}`);
   if (bottomNav) bottomNav.classList.add('active');
-  
+
   const sideNav = document.getElementById(`side-${page}`);
   if (sideNav) sideNav.classList.add('active');
 
@@ -688,30 +688,39 @@ window.changeAnalyticsMonth = function (delta) {
 // SPLASH SCREEN & TYPEWRITER
 // ==========================================
 function startSplashScreen() {
-  const text = "ManageResto is a comprehensive restaurant management application designed for waiters, managers, and owners to streamline daily operations.";
+  const text = "ManageResto is a restaurant management application designed for waiters, managers, and owners to streamline daily operations.";
   const container = document.getElementById('typewriter-text');
+  const progressBar = document.getElementById('splash-bar');
   let i = 0;
 
   function type() {
     if (i < text.length) {
       container.textContent += text.charAt(i);
       i++;
-      setTimeout(type, 35); // Adjust speed here
+      setTimeout(type, 35);
     }
   }
 
   // Start typing
   type();
 
-  // Lifecycle: 10 seconds total
-  setTimeout(() => {
-    const splash = document.getElementById('splash-screen');
-    splash.classList.add('fade-out');
-    // Remove from DOM after transition to free resources
-    setTimeout(() => {
-      splash.remove();
-    }, 800);
-  }, 10000);
+  // Progress Bar Animation (10 seconds)
+  const duration = 10000;
+  const interval = 100;
+  let elapsed = 0;
+  
+  const progressInterval = setInterval(() => {
+    elapsed += interval;
+    const progress = Math.min((elapsed / duration) * 100, 100);
+    progressBar.style.width = `${progress}%`;
+    
+    if (elapsed >= duration) {
+      clearInterval(progressInterval);
+      const splash = document.getElementById('splash-screen');
+      splash.classList.add('fade-out');
+      setTimeout(() => splash.remove(), 800);
+    }
+  }, interval);
 }
 
 // INIT
