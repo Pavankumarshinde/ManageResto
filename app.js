@@ -532,7 +532,7 @@ window.setMenuFormCat = function (el, val) {
   document.getElementById('form-item-category-pills').dataset.val = val;
 }
 
-function setDietToggle(type) {
+window.setDietToggle = function(type) {
   const veg = document.getElementById('diet-veg');
   const non = document.getElementById('diet-nonveg');
   if (type === 'Veg') {
