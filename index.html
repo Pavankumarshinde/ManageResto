@@ -14,15 +14,15 @@
   <!-- ==================== SIDEBAR NAV (Laptop) ==================== -->
   <aside class="sidebar-nav">
     <div class="sidebar-logo">ManageResto</div>
-    <button class="sidebar-item active" onclick="showPage('orders')" id="side-orders">
+    <button class="sidebar-item active" onclick="navigateTo('orders')" id="side-orders">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
       <span>Orders</span>
     </button>
-    <button class="sidebar-item" onclick="showPage('menu')" id="side-menu">
+    <button class="sidebar-item" onclick="navigateTo('menu')" id="side-menu">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
       <span>Menu</span>
     </button>
-    <button class="sidebar-item" onclick="showPage('analytics')" id="side-analytics">
+    <button class="sidebar-item" onclick="navigateTo('analytics')" id="side-analytics">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
       <span>Analytics</span>
     </button>
@@ -315,6 +315,10 @@
       </button>
     </div>
   </div>
+
+  </div><!-- /.main-stage -->
+
+
 
 </div><!-- /#app -->
 

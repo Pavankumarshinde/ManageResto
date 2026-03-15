@@ -69,11 +69,11 @@ const RestoState = sequelize.define('RestoState', {
 sequelize.sync()
   .then(async () => {
     console.log('✅ MySQL Database & tables synced!');
-    
+
     try {
       let state = await RestoState.findOne({ order: [['id', 'DESC']] });
       const menuIsEmpty = !state || (Array.isArray(state.menu) && state.menu.length === 0);
-      
+
       if (menuIsEmpty) {
         console.log('🌱 Seeding initial state because menu is empty...');
         let initialMenu = [];
@@ -84,7 +84,7 @@ sequelize.sync()
         } catch (e) {
           console.error('❌ Could not load data.js:', e.message);
         }
-        
+
         if (initialMenu.length > 0) {
           if (!state) {
             state = await RestoState.create({
