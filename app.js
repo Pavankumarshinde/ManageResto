@@ -3,8 +3,11 @@
 // ==========================================
 // Detect local vs deployed backend
 const API_BASE = "https://manageresto.onrender.com";
+let isSyncing = false;
+let lastSaveTime = 0;
 
 async function fetchState() {
+  if (isSyncing || Date.now() - lastSaveTime < 2000) return;
   try {
     const res = await fetch(`${API_BASE}/api/state?ts=${Date.now()}`);
     const data = await res.json();
@@ -45,8 +48,10 @@ let state = {
 
 // ===== PERSISTENCE (Node.js API) =====
 async function saveState() {
+  isSyncing = true;
+  lastSaveTime = Date.now();
   try {
-    await fetch(`${API_BASE}/api/state`, {
+    const res = await fetch(`${API_BASE}/api/state`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -56,8 +61,15 @@ async function saveState() {
         nextMenuId: state.nextMenuId
       })
     });
+    if (!res.ok) throw new Error('Save failed');
   } catch (err) {
     console.error('Failed to save state to server', err);
+    showToast('⚠️ Sync failed. Reconnecting...');
+  } finally {
+    // Keep lock for a bit longer to allow server processing
+    setTimeout(() => {
+      isSyncing = false;
+    }, 500);
   }
 }
 
