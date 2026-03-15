@@ -5,12 +5,23 @@
 const API_BASE = "https://manageresto.onrender.com";
 let isSyncing = false;
 let lastSaveTime = 0;
+let fetchController = null;
 
 async function fetchState() {
-  if (isSyncing || Date.now() - lastSaveTime < 2000) return;
+  if (isSyncing || Date.now() - lastSaveTime < 2500) return;
+  
+  // Abort any previous fetch if still running
+  if (fetchController) fetchController.abort();
+  fetchController = new AbortController();
+
   try {
-    const res = await fetch(`${API_BASE}/api/state?ts=${Date.now()}`);
+    const res = await fetch(`${API_BASE}/api/state?ts=${Date.now()}`, {
+      signal: fetchController.signal
+    });
     const data = await res.json();
+
+    // Final guard: Don't apply if we started syncing while this fetch was in flight
+    if (isSyncing || Date.now() - lastSaveTime < 2500) return;
 
     // 🔴 Update local state
     state.menu = data.menu || [];
@@ -24,7 +35,10 @@ async function fetchState() {
     if (currentPage === 'analytics') renderAnalytics();
 
   } catch (err) {
+    if (err.name === 'AbortError') return;
     console.error("Polling failed", err);
+  } finally {
+    fetchController = null;
   }
 }
 
@@ -48,8 +62,11 @@ let state = {
 
 // ===== PERSISTENCE (Node.js API) =====
 async function saveState() {
+  if (fetchController) fetchController.abort(); // Kill polling immediately
+  
   isSyncing = true;
   lastSaveTime = Date.now();
+  
   try {
     const res = await fetch(`${API_BASE}/api/state`, {
       method: 'POST',
@@ -62,14 +79,18 @@ async function saveState() {
       })
     });
     if (!res.ok) throw new Error('Save failed');
+    
+    // Successful save: Update lastSaveTime to give server 
+    // real-time to propagate before next poll
+    lastSaveTime = Date.now(); 
   } catch (err) {
     console.error('Failed to save state to server', err);
     showToast('⚠️ Sync failed. Reconnecting...');
   } finally {
-    // Keep lock for a bit longer to allow server processing
+    // Hold the lock for a generous 1 second after response
     setTimeout(() => {
       isSyncing = false;
-    }, 500);
+    }, 1000);
   }
 }
 
