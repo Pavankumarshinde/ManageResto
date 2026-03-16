@@ -27,7 +27,7 @@ async function fetchState() {
     if (isSyncing || isProcessingQueue || (Date.now() - lastSaveTime < 5000)) return;
 
     // 🔴 Update local state
-    state.menu = data.menu || [];
+    state.menu = (data.menu && data.menu.length > 0) ? data.menu : (DEFAULT_MENU ? DEFAULT_MENU.map(i => ({ ...i })) : []);
     state.orders = data.orders || [];
     state.nextOrderId = data.nextOrderId || 1;
     state.nextMenuId = data.nextMenuId || 100;
@@ -500,9 +500,12 @@ let editingMenuId = null;
 let currentMenuCategory = 'All';
 
 function renderMenuPage() {
-  const q = document.getElementById('menu-search').value.toLowerCase();
+  const searchInput = document.getElementById('menu-search');
+  const q = searchInput ? searchInput.value.toLowerCase() : '';
   const list = document.getElementById('menu-list');
-  let items = state.menu;
+  if (!list) return;
+
+  let items = state.menu || [];
 
   if (q) items = items.filter(i => i.name.toLowerCase().includes(q));
   
@@ -519,11 +522,12 @@ function renderMenuPage() {
   list.innerHTML = items.map(m => {
     // Emoji fallback
     let emoji = '🍲';
-    if (m.category.includes('Starter')) emoji = '🍗';
-    if (m.category.includes('Bread')) emoji = '🫓';
-    if (m.category.includes('Drinks')) emoji = '🥤';
-    if (m.category.includes('Dessert')) emoji = '🍨';
-    if (m.category.includes('Curry') || m.category.includes('Course')) emoji = '🍛';
+    const cat = (m.category || '').toLowerCase();
+    if (cat.includes('starter')) emoji = '🍗';
+    else if (cat.includes('bread')) emoji = '🫓';
+    else if (cat.includes('drink')) emoji = '🥤';
+    else if (cat.includes('dessert')) emoji = '🍨';
+    else if (cat.includes('curry') || cat.includes('course')) emoji = '🍛';
 
     let imgHtml = m.image
       ? `<img src="${m.image}" style="width:100%;height:100%;object-fit:cover;border-radius:14px">`
