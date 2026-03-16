@@ -386,9 +386,50 @@ function renderWaiters(q = '') {
   list.innerHTML = filtered.map(name => `
     <div class="waiter-option ${state.currentOrderFlow.waiterName === name ? 'selected' : ''}" 
          onclick="selectWaiter('${name}')">
-      ${name}
+      <span style="flex:1;">${name}</span>
+      <button class="btn-delete-waiter" onclick="event.stopPropagation(); deleteWaiter('${name}')" title="Delete Waiter">×</button>
     </div>
   `).join('');
+}
+
+window.addNewWaiter = async function() {
+  const name = prompt("Enter new waiter name:");
+  if (!name || !name.trim()) return;
+  
+  const trimmedName = name.trim();
+  const exists = state.waiters.some(w => w.toLowerCase() === trimmedName.toLowerCase());
+  
+  if (exists) {
+    showToast("Waiter already exists");
+    return;
+  }
+  
+  state.waiters.push(trimmedName);
+  await saveState();
+  renderWaiters(document.getElementById('waiter-search-input').value);
+  showToast(`Added ${trimmedName}`);
+}
+
+window.deleteWaiter = async function(name) {
+  // Check if waiter has ANY history in orders
+  const hasHistory = state.orders.some(o => o.waiterName === name);
+  
+  if (hasHistory) {
+    alert(`Cannot delete ${name}: This waiter has order history.`);
+    return;
+  }
+  
+  if (!confirm(`Are you sure you want to delete ${name}?`)) return;
+  
+  state.waiters = state.waiters.filter(w => w !== name);
+  await saveState();
+  if (state.currentOrderFlow.waiterName === name) {
+    state.currentOrderFlow.waiterName = '';
+    document.getElementById('selected-waiter-name').value = '';
+    document.getElementById('waiter-search-input').value = '';
+  }
+  renderWaiters(document.getElementById('waiter-search-input').value);
+  showToast(`Deleted ${name}`);
 }
 
 window.selectWaiter = function(name) {
@@ -921,6 +962,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderWaiters(''); // Show all on focus if already selected
       }
     });
+  }
+
+  const btnAddWaiter = document.getElementById('btn-add-waiter');
+  if (btnAddWaiter) {
+    btnAddWaiter.addEventListener('click', addNewWaiter);
   }
 
   document.getElementById('btn-back-items').addEventListener('click', () => hideScreen('screen-items'));

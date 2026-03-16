@@ -1330,6 +1330,41 @@ textarea.form-input {
     color: white !important;
 }
 
+.waiter-option.selected .btn-delete-waiter {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.waiter-option.selected .btn-delete-waiter:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.btn-delete-waiter {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.btn-delete-waiter:hover {
+    background: rgba(135, 31, 40, 0.1);
+    color: var(--primary);
+}
+
+#btn-add-waiter:hover {
+    background: var(--primary-soft) !important;
+    color: var(--primary) !important;
+}
+
 .waiter-option::before {
     content: "👤";
     font-size: 14px;

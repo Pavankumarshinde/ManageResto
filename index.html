@@ -335,7 +335,10 @@
               <div style="width: 100%; max-width: 300px;">
                 <label style="display:block; font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px; text-align:center;">Select Waiter</label>
                 <div class="waiter-selector-container">
-                  <input type="text" id="waiter-search-input" class="waiter-search-input" placeholder="Search waiter..." autocomplete="off">
+                  <div style="display:flex; border-bottom:1px solid var(--border);">
+                    <input type="text" id="waiter-search-input" class="waiter-search-input" style="border-bottom:none;" placeholder="Search waiter..." autocomplete="off">
+                    <button id="btn-add-waiter" style="width:48px; height:48px; background:transparent; border:none; border-left:1px solid var(--border); color:var(--primary); cursor:pointer; font-size:20px; font-weight:800; display:flex; align-items:center; justify-content:center; transition:var(--transition);" title="Add New Waiter">+</button>
+                  </div>
                   <div id="waiter-options-list" class="waiter-options-list">
                     <!-- Waiters rendered here -->
                   </div>
