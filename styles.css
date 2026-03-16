@@ -454,11 +454,11 @@ body {
 .btn-soft:hover { background: #f0d5d7; }
 
 .btn-secondary {
-  background: white;
+  background: var(--bg-surface);
   color: var(--text-primary);
   border: 1px solid var(--border-dark);
 }
-.btn-secondary:hover { background: #f9f9f9; }
+.btn-secondary:hover { background: var(--bg-app); }
 
 .btn-full { width: 100%; }
 
@@ -977,7 +977,7 @@ textarea.form-input {
 .modal-backdrop.active { display: flex; animation: fadeIn 0.2s ease; }
 
 .modal {
-  background: white;
+  background: var(--bg-surface);
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   width: 100%;
   max-width: 768px;
@@ -1092,10 +1092,10 @@ textarea.form-input {
 /* Glass effect for text container on large screens */
 @media (min-width: 768px) {
   .splash-content {
-    background: white;
+    background: var(--bg-surface);
     padding: 80px 60px;
     border-radius: 40px;
-    box-shadow: 0 30px 60px rgba(135, 31, 40, 0.1);
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.2);
     border: 1px solid var(--border-dark);
   }
   .splash-logo { font-size: 64px; }
