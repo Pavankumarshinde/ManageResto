@@ -55,6 +55,7 @@ let state = {
 
   currentOrderFlow: {
     tableNumber: '',
+    waiterName: '',
     items: {},
     editingOrderId: null,
   },
@@ -277,10 +278,11 @@ function renderOrderCard(order) {
   }
 
   return `
-    <div class="card order-card ${isCompleted ? 'completed' : ''}" id="order-${order.id}">
-      <div class="order-card-header">
+      <div class="card order-card ${isCompleted ? 'completed' : ''}" id="order-${order.id}">
+      <div class="order-card-header" style="align-items: flex-start;">
         <div class="order-header-left">
           <h3>Table ${order.tableNumber}</h3>
+          <p>WAITER: ${order.waiterName || '--'}</p>
           <p>ORDER #${order.id} • ${time}</p>
         </div>
         ${paymentHtml}
@@ -331,17 +333,21 @@ function togglePayment(orderId) {
 // NEW ORDER FLOW
 // ==========================================
 function openNewOrder() {
-  state.currentOrderFlow = { tableNumber: '', items: {}, editingOrderId: null };
+  state.currentOrderFlow = { tableNumber: '', waiterName: '', items: {}, editingOrderId: null };
   document.getElementById('table-number-input').value = '';
+  document.getElementById('waiter-name-input').value = '';
   showScreen('screen-table');
 }
 
 function proceedToTable() {
-  const val = document.getElementById('table-number-input').value.trim();
-  if (!val) { showToast('Enter table number'); return; }
+  const tableVal = document.getElementById('table-number-input').value.trim();
+  const waiterVal = document.getElementById('waiter-name-input').value.trim();
+
+  if (!tableVal) { showToast('Enter table number'); return; }
+  if (!waiterVal) { showToast('Enter waiter name'); return; }
 
   // Check if table already has an active (unpaid) order
-  const existingOrder = state.orders.find(o => o.tableNumber === val && !o.paid);
+  const existingOrder = state.orders.find(o => o.tableNumber === tableVal && !o.paid);
   if (existingOrder) {
     const confirmAdd = confirm(`Table ${val} already has an active order. Would you like to add items to it instead?`);
     if (confirmAdd) {
@@ -353,7 +359,8 @@ function proceedToTable() {
     }
   }
 
-  state.currentOrderFlow.tableNumber = val;
+  state.currentOrderFlow.tableNumber = tableVal;
+  state.currentOrderFlow.waiterName = waiterVal;
   openItemSelection();
 }
 
@@ -480,6 +487,7 @@ function sendToKitchen() {
     state.orders.unshift({
       id: state.nextOrderId++,
       tableNumber,
+      waiterName,
       items: entries.map(([id, qty]) => ({ menuItemId: parseInt(id), qty, status: 'Preparing' })),
       paid: false,
       createdAt: new Date().toISOString()
@@ -496,7 +504,7 @@ function sendToKitchen() {
 function openEditOrder(id) {
   const o = state.orders.find(x => x.id === id);
   if (!o) return;
-  state.currentOrderFlow = { tableNumber: o.tableNumber, items: {}, editingOrderId: id };
+  state.currentOrderFlow = { tableNumber: o.tableNumber, waiterName: o.waiterName || '', items: {}, editingOrderId: id };
   openItemSelection();
 }
 
