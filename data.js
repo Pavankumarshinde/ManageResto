@@ -79,6 +79,10 @@ const CATEGORIES = [
   "Beverage",
 ];
 
+const WAITERS = [
+  "Rahul", "Naman", "Vaishnav", "Aditya", "Tanay", "Akash", "Aman"
+];
+
 if (typeof module !== 'undefined') {
-  module.exports = { DEFAULT_MENU, CATEGORIES };
+  module.exports = { DEFAULT_MENU, CATEGORIES, WAITERS };
 }

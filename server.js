@@ -61,6 +61,16 @@ const RestoState = sequelize.define('RestoState', {
       this.setDataValue('orders', JSON.stringify(val));
     }
   },
+  waiters: {
+    type: DataTypes.TEXT('long'),
+    get() {
+      const val = this.getDataValue('waiters');
+      return val ? JSON.parse(val) : [];
+    },
+    set(val) {
+      this.setDataValue('waiters', JSON.stringify(val));
+    }
+  },
   nextOrderId: { type: DataTypes.INTEGER, defaultValue: 1 },
   nextMenuId: { type: DataTypes.INTEGER, defaultValue: 100 }
 });
@@ -80,7 +90,8 @@ sequelize.sync()
         try {
           const data = require('./data.js');
           initialMenu = data.DEFAULT_MENU || [];
-          console.log(`📦 Loaded ${initialMenu.length} items from data.js`);
+          initialWaiters = data.WAITERS || [];
+          console.log(`📦 Loaded ${initialMenu.length} items and ${initialWaiters.length} waiters from data.js`);
         } catch (e) {
           console.error('❌ Could not load data.js:', e.message);
         }
@@ -90,12 +101,14 @@ sequelize.sync()
             state = await RestoState.create({
               menu: initialMenu,
               orders: [],
+              waiters: initialWaiters,
               nextOrderId: 1,
               nextMenuId: 100 + initialMenu.length
             });
           } else {
             console.log('🔄 Updating existing empty record (ID: ' + state.id + ') with default menu');
             state.menu = initialMenu;
+            if (initialWaiters.length > 0) state.waiters = initialWaiters;
             state.nextMenuId = 100 + initialMenu.length;
             await state.save();
           }
@@ -128,6 +141,7 @@ app.get('/api/state', async (req, res) => {
       state = await RestoState.create({
         menu: [],
         orders: [],
+        waiters: [],
         nextOrderId: 1,
         nextMenuId: 100
       });
@@ -142,7 +156,7 @@ app.get('/api/state', async (req, res) => {
 // Update full state
 app.post('/api/state', async (req, res) => {
   try {
-    const { menu, orders, nextOrderId, nextMenuId } = req.body;
+    const { menu, orders, nextOrderId, nextMenuId, waiters } = req.body;
 
     let state = await RestoState.findOne({ order: [['id', 'DESC']] });
     if (!state) {
@@ -153,6 +167,7 @@ app.post('/api/state', async (req, res) => {
     if (orders !== undefined) state.orders = orders;
     if (nextOrderId !== undefined) state.nextOrderId = nextOrderId;
     if (nextMenuId !== undefined) state.nextMenuId = nextMenuId;
+    if (waiters !== undefined) state.waiters = waiters;
 
     await state.save();
     res.json({ success: true, state });

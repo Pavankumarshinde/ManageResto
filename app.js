@@ -59,6 +59,7 @@ let state = {
     items: {},
     editingOrderId: null,
   },
+  waiters: [], // Loaded from backend
 };
 
 // ===== PERSISTENCE (Node.js API) =====
@@ -68,7 +69,8 @@ async function saveState() {
     menu: [...state.menu],
     orders: JSON.parse(JSON.stringify(state.orders)),
     nextOrderId: state.nextOrderId,
-    nextMenuId: state.nextMenuId
+    nextMenuId: state.nextMenuId,
+    waiters: state.waiters
   });
 
   processSaveQueue();
@@ -126,11 +128,13 @@ async function loadState() {
     state.orders = data.orders || [];
     state.nextOrderId = data.nextOrderId || 10;
     state.nextMenuId = data.nextMenuId || 100;
+    state.waiters = data.waiters && data.waiters.length > 0 ? data.waiters : [...WAITERS];
 
   } catch (err) {
     console.error('Failed to load state from server, using defaults', err);
     state.menu = DEFAULT_MENU.map(i => ({ ...i }));
     state.orders = [];
+    state.waiters = [...WAITERS];
   }
 }
 
@@ -335,13 +339,15 @@ function togglePayment(orderId) {
 function openNewOrder() {
   state.currentOrderFlow = { tableNumber: '', waiterName: '', items: {}, editingOrderId: null };
   document.getElementById('table-number-input').value = '';
-  document.getElementById('waiter-name-input').value = '';
+  document.getElementById('waiter-search-input').value = '';
+  document.getElementById('selected-waiter-name').value = '';
+  renderWaiters(''); 
   showScreen('screen-table');
 }
 
 function proceedToTable() {
   const tableVal = document.getElementById('table-number-input').value.trim();
-  const waiterVal = document.getElementById('waiter-name-input').value.trim();
+  const waiterVal = document.getElementById('selected-waiter-name').value.trim();
 
   if (!tableVal) { showToast('Enter table number'); return; }
   if (!waiterVal) { showToast('Enter waiter name'); return; }
@@ -362,6 +368,34 @@ function proceedToTable() {
   state.currentOrderFlow.tableNumber = tableVal;
   state.currentOrderFlow.waiterName = waiterVal;
   openItemSelection();
+}
+
+
+function renderWaiters(q = '') {
+  const list = document.getElementById('waiter-options-list');
+  if (!list) return;
+
+  const query = q.toLowerCase();
+  const filtered = state.waiters.filter(w => w.toLowerCase().includes(query));
+
+  if (filtered.length === 0) {
+    list.innerHTML = `<div style="padding:16px; text-align:center; color:var(--text-muted); font-size:13px;">No waiters found</div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(name => `
+    <div class="waiter-option ${state.currentOrderFlow.waiterName === name ? 'selected' : ''}" 
+         onclick="selectWaiter('${name}')">
+      ${name}
+    </div>
+  `).join('');
+}
+
+window.selectWaiter = function(name) {
+  state.currentOrderFlow.waiterName = name;
+  document.getElementById('selected-waiter-name').value = name;
+  document.getElementById('waiter-search-input').value = name;
+  renderWaiters(name);
 }
 
 function openItemSelection() {
@@ -878,6 +912,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('btn-proceed-table-arrow').addEventListener('click', proceedToTable);
 
   document.getElementById('theme-toggle-btn').addEventListener('click', toggleTheme);
+
+  const waiterSearch = document.getElementById('waiter-search-input');
+  if (waiterSearch) {
+    waiterSearch.addEventListener('input', (e) => renderWaiters(e.target.value));
+    waiterSearch.addEventListener('focus', () => {
+      if (waiterSearch.value === state.currentOrderFlow.waiterName) {
+        renderWaiters(''); // Show all on focus if already selected
+      }
+    });
+  }
 
   document.getElementById('btn-back-items').addEventListener('click', () => hideScreen('screen-items'));
   document.getElementById('btn-send-kitchen').addEventListener('click', sendToKitchen);

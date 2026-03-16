@@ -333,8 +333,14 @@
                 placeholder="0" inputmode="numeric" maxlength="3">
               
               <div style="width: 100%; max-width: 300px;">
-                <label style="display:block; font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px; text-align:center;">Waiter Name</label>
-                <input type="text" id="waiter-name-input" style="width:100%; height:50px; border-radius:15px; border:2px solid var(--border-dark); padding:0 16px; font-size:16px; font-weight:700; text-align:center; outline:none; transition:var(--transition);" placeholder="Enter waiter name">
+                <label style="display:block; font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px; text-align:center;">Select Waiter</label>
+                <div class="waiter-selector-container">
+                  <input type="text" id="waiter-search-input" class="waiter-search-input" placeholder="Search waiter..." autocomplete="off">
+                  <div id="waiter-options-list" class="waiter-options-list">
+                    <!-- Waiters rendered here -->
+                  </div>
+                </div>
+                <input type="hidden" id="selected-waiter-name">
               </div>
 
               <button id="btn-proceed-table-arrow" style="width:64px; height:64px; border-radius:50%; background:var(--primary); color:white; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 8px 16px rgba(139, 34, 34, 0.2); transition:transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
