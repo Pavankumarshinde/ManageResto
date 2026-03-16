@@ -2,7 +2,7 @@
   "menu": [
     {
       "id": 1,
-      "name": "Harabara Kabab",
+      "name": "Hara Bhara Kabab",
       "category": "Tandoori Starter",
       "type": "Veg",
       "price": 340,
@@ -10,7 +10,7 @@
     },
     {
       "id": 2,
-      "name": "Veg Sheek Kabab",
+      "name": "Veg Seekh Kabab",
       "category": "Tandoori Starter",
       "type": "Veg",
       "price": 340,
@@ -42,7 +42,7 @@
     },
     {
       "id": 6,
-      "name": "Mutton Sheek Kabab",
+      "name": "Mutton Seekh Kabab",
       "category": "Tandoori Starter",
       "type": "Non-Veg",
       "price": 600,
@@ -354,7 +354,7 @@
     },
     {
       "id": 45,
-      "name": "Kaddu ka Kheer",
+      "name": "Kaddu Ka Kheer",
       "category": "Dessert",
       "type": "Veg",
       "price": 100,
@@ -362,7 +362,7 @@
     },
     {
       "id": 46,
-      "name": "Fruit Salad With Ice Cream",
+      "name": "Fruit Salad with Ice Cream",
       "category": "Dessert",
       "type": "Veg",
       "price": 150,

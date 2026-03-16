@@ -1,12 +1,12 @@
 // ManageResto – Default Menu Dataset
 const DEFAULT_MENU = [
   // Tandoori Starters
-  { id: 1, name: "Harabara Kabab", category: "Tandoori Starter", type: "Veg", price: 340, image: null },
-  { id: 2, name: "Veg Sheek Kabab", category: "Tandoori Starter", type: "Veg", price: 340, image: null },
+  { id: 1, name: "Hara Bhara Kabab", category: "Tandoori Starter", type: "Veg", price: 340, image: null },
+  { id: 2, name: "Veg Seekh Kabab", category: "Tandoori Starter", type: "Veg", price: 340, image: null },
   { id: 3, name: "Paneer Tikka", category: "Tandoori Starter", type: "Veg", price: 360, image: null },
   { id: 4, name: "Tandoori Chicken", category: "Tandoori Starter", type: "Non-Veg", price: 320, image: null },
   { id: 5, name: "Chicken Tikka", category: "Tandoori Starter", type: "Non-Veg", price: 460, image: null },
-  { id: 6, name: "Mutton Sheek Kabab", category: "Tandoori Starter", type: "Non-Veg", price: 600, image: null },
+  { id: 6, name: "Mutton Seekh Kabab", category: "Tandoori Starter", type: "Non-Veg", price: 600, image: null },
 
   // Starters
   { id: 7, name: "French Fries", category: "Starter", type: "Veg", price: 180, image: null },
@@ -59,8 +59,8 @@ const DEFAULT_MENU = [
   // Desserts
   { id: 43, name: "Gulab Jamun", category: "Dessert", type: "Veg", price: 100, image: null },
   { id: 44, name: "Carrot Halwa", category: "Dessert", type: "Veg", price: 130, image: null },
-  { id: 45, name: "Kaddu ka Kheer", category: "Dessert", type: "Veg", price: 100, image: null },
-  { id: 46, name: "Fruit Salad With Ice Cream", category: "Dessert", type: "Veg", price: 150, image: null },
+  { id: 45, name: "Kaddu Ka Kheer", category: "Dessert", type: "Veg", price: 100, image: null },
+  { id: 46, name: "Fruit Salad with Ice Cream", category: "Dessert", type: "Veg", price: 150, image: null },
 
   // Beverages
   { id: 47, name: "Virgin Mojito", category: "Beverage", type: "Veg", price: 150, image: null },

@@ -59,6 +59,7 @@
 html, body {
   height: 100%;
   overflow: hidden;
+  overscroll-behavior: none;
 }
 
 body {
@@ -79,10 +80,10 @@ body {
 /* ===== APP LAYOUT ===== */
 #app {
   display: flex;
-  flex-direction: row; /* Changed to row for sidebar support */
-  height: 100vh;
+  flex-direction: row;
+  height: 100dvh; /* Dynamic viewport height for mobile */
   width: 100%;
-  max-width: 1440px; /* Laptop optimized */
+  max-width: 1440px;
   margin: 0 auto;
   position: relative;
   overflow: hidden;
@@ -90,9 +91,9 @@ body {
   box-shadow: var(--shadow-md);
 }
 
-/* Outer Padding for Screen Safety */
+/* Safe Area Management */
 body {
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  padding: 0; /* Handled by internal containers */
 }
 
 /* Laptop Sidebar (Hidden by default, shown on wide screens) */
@@ -141,9 +142,18 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
   overflow: hidden;
   position: relative;
+  /* Safe padding for content visibility */
+  padding: 0 12px; 
+}
+
+@media (max-width: 768px) {
+  .main-stage {
+    padding-top: env(safe-area-inset-top, 8px);
+    padding-bottom: calc(env(safe-area-inset-bottom, 8px) + 8px);
+  }
 }
 
 /* ===== PAGES ===== */
@@ -174,7 +184,7 @@ body {
   z-index: 200;
   flex-direction: column;
   animation: slideLeft 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  padding: 12px; /* Margin from edges */
+  padding: 0; /* Padding moved to stage */
 }
 .screen.active { display: flex; }
 
@@ -285,25 +295,33 @@ body {
   padding-bottom: 24px;
 }
 .scroll-content-pb-nav {
-  padding-bottom: calc(var(--nav-height) + 16px);
+  padding-bottom: calc(var(--nav-height) + 32px);
 }
 
 /* ===== BOTTOM NAV ===== */
 .bottom-nav {
   position: fixed;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 100%;
-  max-width: 768px;
+  bottom: 12px;
+  left: 12px;
+  right: 12px;
+  width: calc(100% - 24px);
+  max-width: 744px;
   height: var(--nav-height);
   background: var(--bg-nav);
-  box-shadow: var(--shadow-nav);
+  border-radius: var(--radius-xl);
   display: flex;
+  margin: 0 auto;
+  border: 1px solid var(--border-dark);
+  box-shadow: var(--shadow-nav);
   align-items: center;
   justify-content: space-around;
   z-index: 100;
   padding: 0 10px;
+}
+@media (max-width: 768px) {
+  .bottom-nav {
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+  }
 }
 
 .nav-item {
@@ -721,6 +739,12 @@ textarea.form-input {
   
   .scroll-content-pb-nav {
     padding-bottom: 40px;
+  }
+  
+  .bottom-nav {
+    left: 50%;
+    transform: translateX(-50%);
+    width: 600px;
   }
   
   /* Modal constraints for wide screens removed to allow full-stage coverage */
