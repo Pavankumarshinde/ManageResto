@@ -473,14 +473,19 @@ function openEditOrder(id) {
 // MENU CONFIG
 // ==========================================
 let editingMenuId = null;
+let currentMenuCategory = 'All';
 
 function renderMenuPage() {
   const q = document.getElementById('menu-search').value.toLowerCase();
   const list = document.getElementById('menu-list');
   let items = state.menu;
+
   if (q) items = items.filter(i => i.name.toLowerCase().includes(q));
+  if (currentMenuCategory !== 'All') items = items.filter(i => i.category === currentMenuCategory);
 
   document.getElementById('menu-count-badge').textContent = `${items.length} Items`;
+
+  renderMenuCategories();
 
   list.innerHTML = items.map(m => {
     // Emoji fallback
@@ -512,6 +517,23 @@ function renderMenuPage() {
       </div>
     `;
   }).join('');
+}
+
+function renderMenuCategories() {
+  const container = document.getElementById('menu-cat-pills');
+  if (!container) return;
+
+  const cats = ['All', ...CATEGORIES];
+  container.innerHTML = cats.map(c =>
+    `<div class="pill-option ${currentMenuCategory === c ? 'active' : ''}" 
+          style="font-size:13px; padding:6px 16px; border-radius:16px; flex-shrink:0;" 
+          onclick="selectMenuCategory('${c}')">${c}</div>`
+  ).join('');
+}
+
+window.selectMenuCategory = function (cat) {
+  currentMenuCategory = cat;
+  renderMenuPage();
 }
 
 function openMenuForm(id = null) {
