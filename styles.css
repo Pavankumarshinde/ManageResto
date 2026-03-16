@@ -560,11 +560,15 @@ body {
 }
 
 /* ===== SEARCH BAR ===== */
-background: var(--bg-input);
-border: 1px solid var(--border-dark);
-border-radius: var(--radius-lg);
-padding: 0 16px;
-margin-bottom: 16px;
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-lg);
+  padding: 0 16px;
+  margin-bottom: 16px;
 }
 
 .search-bar svg {
@@ -781,11 +785,12 @@ textarea.form-input {
   margin-bottom: 20px;
 }
 
-font-family: var(--font-serif);
-font-size: 22px;
-font-weight: 800;
-color: var(--text-primary);
-margin-bottom: 4px;
+.order-header-left h3 {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 4px;
 }
 
 .order-header-left p {
@@ -1084,20 +1089,6 @@ margin-bottom: 4px;
   height: 100%;
   background: var(--primary);
   border-radius: 4px;
-}
-
-.mo-icon {
-  width: 48px;
-  height: 48px;
-  background: var(--primary-light);
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  position: absolute;
-  right: 24px;
-  top: 40px;
 }
 
 /* ===== CALENDAR (Custom design based on screenshot) ===== */

@@ -385,7 +385,7 @@ function renderOrderItems(search, category) {
   let items = state.menu;
 
   if (search) items = items.filter(m => m.name.toLowerCase().includes(search.toLowerCase()));
-  
+
   if (category && category !== 'All') {
     if (category === 'Veg') items = items.filter(m => m.type === 'Veg');
     else if (category === 'Non-Veg') items = items.filter(m => m.type === 'Non-Veg');
@@ -396,11 +396,11 @@ function renderOrderItems(search, category) {
     const qty = state.currentOrderFlow.items[m.id] || 0;
 
     // Icon fallback based on category
-    let emoji = '🍲';
-    if (m.category.includes('Starter')) emoji = '🍗';
+    let emoji = '🍽️';
+    if (m.category.includes('Starter')) emoji = '🥗';
     if (m.category.includes('Bread')) emoji = '🫓';
     if (m.category.includes('Biryani') || m.category.includes('Rice')) emoji = '🍚';
-    if (m.category.includes('Dessert')) emoji = '🍨';
+    if (m.category.includes('Dessert')) emoji = '🍰';
     if (m.category.includes('Beverage')) emoji = '🥤';
     if (m.category.includes('Curry')) emoji = '🍛';
 
@@ -508,7 +508,7 @@ function renderMenuPage() {
   let items = state.menu || [];
 
   if (q) items = items.filter(i => i.name.toLowerCase().includes(q));
-  
+
   if (currentMenuCategory !== 'All') {
     if (currentMenuCategory === 'Veg') items = items.filter(m => m.type === 'Veg');
     else if (currentMenuCategory === 'Non-Veg') items = items.filter(m => m.type === 'Non-Veg');
@@ -521,12 +521,12 @@ function renderMenuPage() {
 
   list.innerHTML = items.map(m => {
     // Emoji fallback
-    let emoji = '🍲';
+    let emoji = '🍽️';
     const cat = (m.category || '').toLowerCase();
-    if (cat.includes('starter')) emoji = '🍗';
+    if (cat.includes('starter')) emoji = '🥗';
     else if (cat.includes('bread')) emoji = '🫓';
     else if (cat.includes('drink')) emoji = '🥤';
-    else if (cat.includes('dessert')) emoji = '🍨';
+    else if (cat.includes('dessert')) emoji = '🍰';
     else if (cat.includes('curry') || cat.includes('course')) emoji = '🍛';
 
     let imgHtml = m.image
@@ -687,15 +687,6 @@ function renderAnalytics() {
       document.getElementById('mo-name').textContent = mi.name;
       document.getElementById('mo-count').textContent = `${top[1]} ordered`;
       document.getElementById('mo-progress').style.width = Math.min((top[1] / 20) * 100, 100) + '%';
-
-      let emoji = '🍲';
-      if (mi.category.includes('Starter')) emoji = '🍗';
-      if (mi.category.includes('Bread')) emoji = '🫓';
-      if (mi.category.includes('Biryani') || mi.category.includes('Rice')) emoji = '🍚';
-      if (mi.category.includes('Dessert')) emoji = '🍨';
-      if (mi.category.includes('Beverage')) emoji = '🥤';
-      if (mi.category.includes('Curry')) emoji = '🍛';
-      document.getElementById('mo-icon').textContent = emoji;
     }
   } else {
     document.getElementById('mo-name').textContent = '--';
