@@ -42,10 +42,32 @@
 
   --nav-height: 72px;
   
-  --transition: 0.2s ease;
+  --transition: 0.3s ease;
   
   --font-serif: 'Playfair Display', serif;
   --font-sans: 'Nunito', sans-serif;
+}
+
+/* ===== DARK THEME OVERRIDES ===== */
+[data-theme="dark"] {
+  --bg-app: #121010;
+  --bg-surface: #1a1616;
+  --bg-card: #1e1b1b;
+  --bg-input: #262121;
+  --bg-nav: #1a1616;
+
+  --text-primary: #f5f0f0;
+  --text-secondary: #d4c7c7;
+  --text-muted: #a69a9a;
+
+  --border: #2d2626;
+  --border-dark: #3d3434;
+
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 6px 16px rgba(0, 0, 0, 0.3);
+  
+  --primary-light: #2d1a1c;
+  --primary-soft: #382426;
 }
 
 /* ===== RESET & BASE ===== */
@@ -89,7 +111,47 @@ body {
   overflow: hidden;
   background: var(--bg-app);
   box-shadow: var(--shadow-md);
+  transition: background var(--transition), color var(--transition);
 }
+
+/* Theme Toggle Button */
+.theme-toggle-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 100;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition);
+}
+
+.theme-toggle-btn:hover {
+  transform: scale(1.05);
+  box-shadow: var(--shadow-md);
+}
+
+.theme-toggle-btn svg {
+  transition: transform 0.5s ease;
+}
+
+[data-theme="dark"] .theme-toggle-btn svg {
+  transform: rotate(360deg);
+}
+
+.sun-icon { display: block; }
+.moon-icon { display: none; }
+
+[data-theme="dark"] .sun-icon { display: none; }
+[data-theme="dark"] .moon-icon { display: block; }
 
 /* Safe Area Management */
 body {

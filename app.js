@@ -112,6 +112,7 @@ async function processSaveQueue() {
   }
 }
 
+
 async function loadState() {
   try {
     const res = await fetch(`${API_BASE}/api/state`);
@@ -769,10 +770,26 @@ function startSplashScreen() {
   }, interval);
 }
 
+// Theme Toggle
+async function initTheme() {
+  const savedTheme = localStorage.getItem('theme') || 'light';
+  document.documentElement.setAttribute('data-theme', savedTheme);
+}
+
+function toggleTheme() {
+  const currentTheme = document.documentElement.getAttribute('data-theme');
+  const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', newTheme);
+  localStorage.setItem('theme', newTheme);
+}
+
 // INIT
 document.addEventListener('DOMContentLoaded', async () => {
   startSplashScreen();
-  await loadState();
+  await initTheme();
+  loadState();
+
+  // Navigation
   navigateTo('orders');
 
   document.getElementById('nav-orders').addEventListener('click', () => navigateTo('orders'));
@@ -782,6 +799,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('btn-new-order').addEventListener('click', openNewOrder);
   document.getElementById('btn-back-table').addEventListener('click', () => hideScreen('screen-table'));
   document.getElementById('btn-proceed-table-arrow').addEventListener('click', proceedToTable);
+
+  document.getElementById('theme-toggle-btn').addEventListener('click', toggleTheme);
 
   document.getElementById('btn-back-items').addEventListener('click', () => hideScreen('screen-items'));
   document.getElementById('btn-send-kitchen').addEventListener('click', sendToKitchen);
