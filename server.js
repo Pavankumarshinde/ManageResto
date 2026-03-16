@@ -76,7 +76,7 @@ const RestoState = sequelize.define('RestoState', {
 });
 
 // Sync Database
-sequelize.sync()
+sequelize.sync({ alter: true })
   .then(async () => {
     console.log('✅ MySQL Database & tables synced!');
 
