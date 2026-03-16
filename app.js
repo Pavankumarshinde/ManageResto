@@ -349,7 +349,7 @@ function proceedToTable() {
   // Check if table already has an active (unpaid) order
   const existingOrder = state.orders.find(o => o.tableNumber === tableVal && !o.paid);
   if (existingOrder) {
-    const confirmAdd = confirm(`Table ${val} already has an active order. Would you like to add items to it instead?`);
+    const confirmAdd = confirm(`Table ${tableVal} already has an active order. Would you like to add items to it instead?`);
     if (confirmAdd) {
       openEditOrder(existingOrder.id);
       return;
@@ -463,7 +463,7 @@ function updateSummaryBar() {
 }
 
 function sendToKitchen() {
-  const { tableNumber, items, editingOrderId } = state.currentOrderFlow;
+  const { tableNumber, waiterName, items, editingOrderId } = state.currentOrderFlow;
   const entries = Object.entries(items);
   if (entries.length === 0) { showToast('Add items first'); return; }
 
@@ -740,6 +740,40 @@ function renderAnalytics() {
                   onclick="selectAnalyticsDate(${i})">${i}</div>`;
   }
   grid.innerHTML = html;
+
+  // 4. Waiter Performance (Selected Month)
+  const waiterList = document.getElementById('waiter-performance-list');
+  if (waiterList) {
+    const waiterCounts = {};
+    
+    // Group monthly orders by waiterName
+    monthOrders.forEach(o => {
+      const name = o.waiterName || 'Unknown';
+      waiterCounts[name] = (waiterCounts[name] || 0) + 1;
+    });
+
+    const topWaiters = Object.entries(waiterCounts).sort((a, b) => b[1] - a[1]);
+
+    if (topWaiters.length > 0) {
+      waiterList.innerHTML = topWaiters.map(([name, count]) => `
+        <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:10px; border-bottom:1px solid var(--border);">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div style="width:36px; height:36px; border-radius:50%; background:var(--primary-soft); display:flex; align-items:center; justify-content:center; font-size:16px;">👤</div>
+            <div>
+              <div style="font-weight:700; color:var(--text-primary); font-size:15px;">${name}</div>
+              <div style="font-size:12px; color:var(--text-muted);">This Month</div>
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:16px; font-weight:800; color:var(--success);">${count}</div>
+            <div style="font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Orders</div>
+          </div>
+        </div>
+      `).join('');
+    } else {
+      waiterList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-muted); font-size:14px;">No completed orders for this month yet.</div>`;
+    }
+  }
 }
 
 window.selectAnalyticsDate = function (day) {
