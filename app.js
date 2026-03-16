@@ -317,7 +317,11 @@ function toggleItemStatus(orderId, itemIdx) {
 function togglePayment(orderId) {
   const order = state.orders.find(o => o.id === orderId);
   if (!order) return;
-  order.paid = true; // One way trip to completed for demo
+
+  const confirmed = confirm("Have you served all items and received the payment?");
+  if (!confirmed) return;
+
+  order.paid = true;
   saveState();
   renderOrders();
   showToast('Order completed & paid ✓');
