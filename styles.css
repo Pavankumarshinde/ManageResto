@@ -50,24 +50,24 @@
 
 /* ===== DARK THEME OVERRIDES ===== */
 [data-theme="dark"] {
-  --bg-app: #121010;
-  --bg-surface: #1a1616;
-  --bg-card: #1e1b1b;
-  --bg-input: #262121;
-  --bg-nav: #1a1616;
+  --bg-app: #0d0b0b;
+  --bg-surface: #161313;
+  --bg-card: #1c1818;
+  --bg-input: #231e1e;
+  --bg-nav: #161313;
 
-  --text-primary: #f5f0f0;
-  --text-secondary: #d4c7c7;
-  --text-muted: #a69a9a;
+  --text-primary: #ffffff;
+  --text-secondary: #e2d7d7; /* Significantly lighter */
+  --text-muted: #b0a4a4;    /* Lighter muted text */
 
-  --border: #2d2626;
-  --border-dark: #3d3434;
+  --border: #362f2f;       /* More visible borders */
+  --border-dark: #4a4141;
 
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 6px 16px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5);
   
-  --primary-light: #2d1a1c;
-  --primary-soft: #382426;
+  --primary-light: #3a1a1c;
+  --primary-soft: #482426;
 }
 
 /* ===== RESET & BASE ===== */
