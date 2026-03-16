@@ -609,6 +609,10 @@ function openMenuForm(id = null) {
   document.getElementById('form-item-category-pills').dataset.val = cat;
 
   setDietToggle(m ? m.type : 'Veg');
+  
+  // Toggle delete button visibility
+  const delBtn = document.getElementById('btn-delete-menu-item');
+  if (delBtn) delBtn.style.display = id ? 'block' : 'none';
 
   showScreen('screen-menu-form');
 }
@@ -660,6 +664,22 @@ function saveMenuItem() {
   saveState();
   hideScreen('screen-menu-form');
   renderMenuPage();
+}
+
+function deleteMenuItem() {
+  if (!editingMenuId) return;
+  
+  const m = getMenuItemById(editingMenuId);
+  const confirmMsg = `Are you sure you want to delete "${m ? m.name : 'this item'}" from the menu? This cannot be undone.`;
+  
+  if (!window.confirm(confirmMsg)) return;
+
+  state.menu = state.menu.filter(item => item.id !== editingMenuId);
+  
+  saveState();
+  hideScreen('screen-menu-form');
+  renderMenuPage();
+  showToast('Item deleted from menu');
 }
 
 // ==========================================
@@ -868,6 +888,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('btn-add-menu-item').addEventListener('click', () => openMenuForm());
   document.getElementById('btn-back-menu-form').addEventListener('click', () => hideScreen('screen-menu-form'));
   document.getElementById('menu-form-btn').addEventListener('click', saveMenuItem);
+  document.getElementById('btn-delete-menu-item').addEventListener('click', deleteMenuItem);
   document.getElementById('menu-search').addEventListener('input', renderMenuPage);
 
   document.getElementById('diet-veg').addEventListener('click', () => setDietToggle('Veg'));
