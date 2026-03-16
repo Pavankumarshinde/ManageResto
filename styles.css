@@ -50,15 +50,16 @@
 
 /* ===== DARK THEME OVERRIDES ===== */
 [data-theme="dark"] {
-  --bg-app: #0f172a;      /* Deep Slate Blue */
+  --primary: #732930;      /* Requested replacement for #871f28 */
+  --bg-app: #0f172a;       /* Deep Slate Blue */
   --bg-surface: #1e293b;
   --bg-card: #334155;
   --bg-input: #1e293b;
   --bg-nav: #1e293b;
 
   --text-primary: #ffffff;
-  --text-secondary: #f8fafc; /* Crisp Light Slate */
-  --text-muted: #cbd5e1;    /* Very visible light gray */
+  --text-secondary: #fef2f2; /* Ultra light slate/white */
+  --text-muted: #ffe4d8;    /* Requested Peach accent for secondary details */
 
   --border: #475569;       /* Slate borders */
   --border-dark: #64748b;
@@ -66,8 +67,8 @@
   --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.5);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.6);
   
-  --primary-light: #2d1a1c;
-  --primary-soft: #382426;
+  --primary-light: #3a1a1c;
+  --primary-soft: #482426;
 }
 
 /* ===== RESET & BASE ===== */
