@@ -396,13 +396,21 @@ function renderOrderItems(search, category) {
     const qty = state.currentOrderFlow.items[m.id] || 0;
 
     // Icon fallback based on category
-    let emoji = '🍽️';
-    if (m.category.includes('Starter')) emoji = '🥗';
-    if (m.category.includes('Bread')) emoji = '🫓';
-    if (m.category.includes('Biryani') || m.category.includes('Rice')) emoji = '🍚';
-    if (m.category.includes('Dessert')) emoji = '🍰';
-    if (m.category.includes('Beverage')) emoji = '🥤';
-    if (m.category.includes('Curry')) emoji = '🍛';
+    let emoji = '🍽️'; // Default
+
+    const cat = (m.category || '').toLowerCase();
+
+    if (cat.includes('tandoori')) emoji = '🔥🍗';
+    else if (cat.includes('starter')) emoji = '🥗';
+    else if (cat.includes('soup')) emoji = '🍲';
+    else if (cat.includes('biryani')) emoji = '🍛';
+    else if (cat.includes('rice') || cat.includes('noodle')) emoji = '🍜';
+    else if (cat.includes('bread')) emoji = '🫓';
+    else if (cat.includes('beverage') || cat.includes('drink')) emoji = '🥤';
+    else if (cat.includes('veg')) emoji = '🌿';
+    else if (cat.includes('non-veg')) emoji = '🥩';
+    else if (cat.includes('dessert')) emoji = '🍰';
+    else if (cat.includes('curry')) emoji = '🍛';
 
     let imgHtml = m.image
       ? `<img src="${m.image}" style="width:100%;height:100%;object-fit:cover;border-radius:14px">`
@@ -521,13 +529,21 @@ function renderMenuPage() {
 
   list.innerHTML = items.map(m => {
     // Emoji fallback
-    let emoji = '🍽️';
+    let emoji = '🍽️'; // All / Default
+
     const cat = (m.category || '').toLowerCase();
-    if (cat.includes('starter')) emoji = '🥗';
-    else if (cat.includes('bread')) emoji = '🫓';
-    else if (cat.includes('drink')) emoji = '🥤';
-    else if (cat.includes('dessert')) emoji = '🍰';
-    else if (cat.includes('curry') || cat.includes('course')) emoji = '🍛';
+
+    if (cat.includes('tandoori')) emoji = '🔥';        // Tandoori Starter
+    else if (cat.includes('starter')) emoji = '🥗';     // Starter
+    else if (cat.includes('soup')) emoji = '🍲';        // Soup
+    else if (cat.includes('biryani')) emoji = '🍛';     // Biryani
+    else if (cat.includes('rice') || cat.includes('noodle')) emoji = '🍜'; // Rice & Noodles
+    else if (cat.includes('bread')) emoji = '🫓';       // Breads
+    else if (cat.includes('drink') || cat.includes('beverage')) emoji = '🥤'; // Beverage
+    else if (cat.includes('veg')) emoji = '🌿';         // Veg
+    else if (cat.includes('non-veg')) emoji = '🥩';     // Non-Veg
+    else if (cat.includes('dessert')) emoji = '🍰';     // Dessert
+    else if (cat.includes('curry') || cat.includes('course')) emoji = '🍛'; // Curry
 
     let imgHtml = m.image
       ? `<img src="${m.image}" style="width:100%;height:100%;object-fit:cover;border-radius:14px">`
