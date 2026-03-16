@@ -334,6 +334,20 @@ function openNewOrder() {
 function proceedToTable() {
   const val = document.getElementById('table-number-input').value.trim();
   if (!val) { showToast('Enter table number'); return; }
+
+  // Check if table already has an active (unpaid) order
+  const existingOrder = state.orders.find(o => o.tableNumber === val && !o.paid);
+  if (existingOrder) {
+    const confirmAdd = confirm(`Table ${val} already has an active order. Would you like to add items to it instead?`);
+    if (confirmAdd) {
+      openEditOrder(existingOrder.id);
+      return;
+    } else {
+      // Stay on screen to change table number or cancel
+      return;
+    }
+  }
+
   state.currentOrderFlow.tableNumber = val;
   openItemSelection();
 }
@@ -348,7 +362,7 @@ function openItemSelection() {
 }
 
 function renderOrderCategories(activeCat) {
-  const cats = ['All', ...CATEGORIES];
+  const cats = ['All', 'Veg', 'Non-Veg', ...CATEGORIES];
   const html = cats.map(c =>
     `<div class="pill-option ${activeCat === c ? 'active' : ''}" style="font-size:13px; padding:6px 16px; border-radius:16px; flex-shrink:0;" onclick="selectOrderCat('${c}')">${c}</div>`
   ).join('');
@@ -366,7 +380,12 @@ function renderOrderItems(search, category) {
   let items = state.menu;
 
   if (search) items = items.filter(m => m.name.toLowerCase().includes(search.toLowerCase()));
-  if (category && category !== 'All') items = items.filter(m => m.category === category);
+  
+  if (category && category !== 'All') {
+    if (category === 'Veg') items = items.filter(m => m.type === 'Veg');
+    else if (category === 'Non-Veg') items = items.filter(m => m.type === 'Non-Veg');
+    else items = items.filter(m => m.category === category);
+  }
 
   container.innerHTML = items.map(m => {
     const qty = state.currentOrderFlow.items[m.id] || 0;
@@ -481,7 +500,12 @@ function renderMenuPage() {
   let items = state.menu;
 
   if (q) items = items.filter(i => i.name.toLowerCase().includes(q));
-  if (currentMenuCategory !== 'All') items = items.filter(i => i.category === currentMenuCategory);
+  
+  if (currentMenuCategory !== 'All') {
+    if (currentMenuCategory === 'Veg') items = items.filter(m => m.type === 'Veg');
+    else if (currentMenuCategory === 'Non-Veg') items = items.filter(m => m.type === 'Non-Veg');
+    else items = items.filter(i => i.category === currentMenuCategory);
+  }
 
   document.getElementById('menu-count-badge').textContent = `${items.length} Items`;
 
@@ -523,7 +547,7 @@ function renderMenuCategories() {
   const container = document.getElementById('menu-cat-pills');
   if (!container) return;
 
-  const cats = ['All', ...CATEGORIES];
+  const cats = ['All', 'Veg', 'Non-Veg', ...CATEGORIES];
   container.innerHTML = cats.map(c =>
     `<div class="pill-option ${currentMenuCategory === c ? 'active' : ''}" 
           style="font-size:13px; padding:6px 16px; border-radius:16px; flex-shrink:0;" 
@@ -730,12 +754,12 @@ function startSplashScreen() {
   const duration = 10000;
   const interval = 100;
   let elapsed = 0;
-  
+
   const progressInterval = setInterval(() => {
     elapsed += interval;
     const progress = Math.min((elapsed / duration) * 100, 100);
     progressBar.style.width = `${progress}%`;
-    
+
     if (elapsed >= duration) {
       clearInterval(progressInterval);
       const splash = document.getElementById('splash-screen');
@@ -757,7 +781,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   document.getElementById('btn-new-order').addEventListener('click', openNewOrder);
   document.getElementById('btn-back-table').addEventListener('click', () => hideScreen('screen-table'));
-  document.getElementById('btn-proceed-table').addEventListener('click', proceedToTable);
+  document.getElementById('btn-proceed-table-arrow').addEventListener('click', proceedToTable);
 
   document.getElementById('btn-back-items').addEventListener('click', () => hideScreen('screen-items'));
   document.getElementById('btn-send-kitchen').addEventListener('click', sendToKitchen);
