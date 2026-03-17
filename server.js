@@ -4,6 +4,7 @@ const cors = require('cors');
 const { Sequelize, DataTypes } = require('sequelize');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const path = require('path');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'; // Should be in .env
 
@@ -166,11 +167,43 @@ sequelize.sync({ alter: true })
   });
 
 app.get("/", (req, res) => {
-  res.send("ManageResto Backend v7 - Full Fix - System Ready");
+  res.send(`
+    <html>
+      <head>
+        <title>ManageResto Backend</title>
+        <link rel="icon" href="/favicon.ico" type="image/svg+xml">
+        <style>
+          body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: #f8f9fa; margin: 0; }
+          .icon { width: 120px; height: 120px; margin-bottom: 24px; }
+          h1 { color: #871f28; font-size: 24px; }
+          p { color: #6c757d; }
+        </style>
+      </head>
+      <body>
+        <div class="icon">
+          <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <rect width="100" height="100" rx="20" fill="#871f28"/>
+            <path d="M30 30h40v10H30zM30 45h40v10H30zM30 60h40v10H30z" fill="white"/>
+            <circle cx="75" cy="25" r="10" fill="#ffc107"/>
+          </svg>
+        </div>
+        <h1>ManageResto Backend v7</h1>
+        <p>Final Auth Fix - System Ready</p>
+      </body>
+    </html>
+  `);
 });
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", version: "7.0", timestamp: new Date() });
+});
+
+app.get("/favicon.ico", (req, res) => {
+  res.sendFile(path.join(__dirname, "backend_icon.svg"));
+});
+
+app.get("/favicon.png", (req, res) => {
+  res.sendFile(path.join(__dirname, "favicon.png")); // Keep PNG for frontend compatibility
 });
 
 // --- Auth Middleware ---
