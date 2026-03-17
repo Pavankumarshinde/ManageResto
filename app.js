@@ -1,6 +1,7 @@
 // ==========================================
-// ManageResto – Main Application Logic
+// ManageResto – Main Application Logic (v1.2 - Full Fix)
 // ==========================================
+console.log("🚀 ManageResto Frontend v1.2 Loading...");
 // Detect local vs deployed backend
 const API_BASE = "https://manageresto.onrender.com";
 let isSyncing = false;
