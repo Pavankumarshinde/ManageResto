@@ -1467,3 +1467,124 @@ textarea.form-input {
     font-size: 22px;
   }
 }
+
+/* ===== LANDING PAGE & AUTH STYLES ===== */
+#landing-page {
+  background: radial-gradient(circle at top right, #fff5f5, var(--bg-app));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  z-index: 500;
+}
+
+.landing-content {
+  max-width: 480px;
+  width: 100%;
+  padding: 40px 24px;
+}
+
+.landing-hero h1 {
+  font-size: 48px;
+  line-height: 1.1;
+  margin-bottom: 16px;
+}
+
+.landing-hero p {
+  color: var(--text-secondary);
+  font-size: 18px;
+  margin-bottom: 40px;
+}
+
+.auth-toggle-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.auth-container {
+  background: var(--bg-surface);
+  border-radius: var(--radius-xl);
+  padding: 32px 24px;
+  box-shadow: var(--shadow-md);
+  text-align: left;
+  position: relative;
+  animation: slideUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(40px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.auth-form h2 {
+  margin-bottom: 8px;
+}
+
+.auth-form p {
+  margin-bottom: 24px;
+  font-size: 14px;
+}
+
+.auth-switch {
+  text-align: center;
+  margin-top: 24px;
+  color: var(--text-muted);
+}
+
+.auth-switch a {
+  color: var(--primary);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+/* ===== PROFILE PAGE STYLES ===== */
+.profile-hero {
+  text-align: center;
+  padding: 40px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.profile-avatar {
+  width: 80px;
+  height: 80px;
+  background: var(--primary);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  font-weight: 800;
+  margin-bottom: 16px;
+  box-shadow: 0 8px 16px rgba(135, 31, 40, 0.2);
+}
+
+.profile-hero h2 {
+  font-family: var(--font-serif);
+  font-size: 24px;
+  margin-bottom: 4px;
+}
+
+.profile-info-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.info-item label {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.info-item p {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}

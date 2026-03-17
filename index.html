@@ -23,7 +23,74 @@
     </div>
   </div>
 
-  <div id="app">
+  <!-- ==================== LANDING PAGE / AUTH ==================== -->
+  <div id="landing-page" class="screen active">
+    <div class="landing-content">
+      <div class="landing-hero">
+        <h1 class="serif">ManageYour<br><span class="text-primary">Resto</span></h1>
+        <p>The premium choice for modern restaurant management.</p>
+        <div class="auth-toggle-buttons">
+          <button class="btn btn-primary" onclick="showAuthForm('signup')">Get Started</button>
+          <button class="btn btn-secondary" onclick="showAuthForm('login')">Login</button>
+        </div>
+      </div>
+
+      <!-- Auth Forms -->
+      <div id="auth-container" class="auth-container" style="display:none;">
+        <button class="btn-back" onclick="hideAuthForm()">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7" /></svg>
+        </button>
+
+        <div id="form-login" class="auth-form">
+          <h2 class="serif">Welcome Back</h2>
+          <p>Login to manage your restaurant</p>
+          <div class="form-group">
+            <label class="form-label">Email or Mobile</label>
+            <input type="text" id="login-identifier" class="form-input" placeholder="Enter email or mobile">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Password</label>
+            <input type="password" id="login-password" class="form-input" placeholder="••••••••">
+          </div>
+          <button class="btn btn-primary btn-full" onclick="handleLogin()">Login</button>
+          <p class="auth-switch">Don't have an account? <a href="#" onclick="showAuthForm('signup')">Sign Up</a></p>
+        </div>
+
+        <div id="form-signup" class="auth-form" style="display:none;">
+          <h2 class="serif">Create Account</h2>
+          <p>Join ManageResto today</p>
+          <div class="form-group">
+            <label class="form-label">Restaurant Name</label>
+            <input type="text" id="signup-resto-name" class="form-input" placeholder="e.g. The Grand Bistro">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email Address</label>
+            <input type="email" id="signup-email" class="form-input" placeholder="name@example.com">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Mobile Number</label>
+            <input type="tel" id="signup-mobile" class="form-input" placeholder="e.g. +91 9876543210">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Location</label>
+            <input type="text" id="signup-location" class="form-input" placeholder="City, Area">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Create Password</label>
+            <input type="password" id="signup-password" class="form-input" placeholder="Min. 8 characters">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Confirm Password</label>
+            <input type="password" id="signup-confirm-password" class="form-input" placeholder="Repeat password">
+          </div>
+          <button class="btn btn-primary btn-full" onclick="handleSignup()">Sign Up</button>
+          <p class="auth-switch">Already have an account? <a href="#" onclick="showAuthForm('login')">Login</a></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="app" style="display:none;">
 
     <!-- ==================== SIDEBAR NAV (Laptop) ==================== -->
     <aside class="sidebar-nav">
@@ -52,6 +119,12 @@
           <line x1="6" y1="20" x2="6" y2="14" />
         </svg>
         <span>Analytics</span>
+      </button>
+      <button class="sidebar-item" onclick="navigateTo('profile')" id="side-profile">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+        </svg>
+        <span>Profile</span>
       </button>
     </aside>
 
@@ -217,6 +290,45 @@
       </div>
 
 
+      <!-- ==================== PROFILE PAGE ==================== -->
+      <div id="page-profile" class="page">
+        <div class="page-header">
+          <h1>Profile</h1>
+          <button class="btn btn-soft" onclick="handleLogout()" style="border-radius:24px; padding:0 16px;">Logout</button>
+        </div>
+
+        <div class="scroll-content scroll-content-pb-nav">
+          <div class="card profile-hero">
+            <div class="profile-avatar">
+              <span id="profile-initials">MR</span>
+            </div>
+            <h2 id="profile-resto-name">Restaurant Name</h2>
+            <p id="profile-location" style="color:var(--text-muted);">Location</p>
+          </div>
+
+          <div class="card">
+            <h3 style="margin-bottom:16px; font-size:18px;">Account Information</h3>
+            <div class="profile-info-grid">
+              <div class="info-item">
+                <label>Email</label>
+                <p id="profile-email">---</p>
+              </div>
+              <div class="info-item">
+                <label>Mobile</label>
+                <p id="profile-mobile">---</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="border-color: #ffc7c7; background: #fff8f8;">
+            <h3 style="color:var(--primary); margin-bottom:12px;">App Settings</h3>
+            <p style="font-size:13px; color:var(--text-secondary); margin-bottom:16px;">System settings and data management.</p>
+            <button class="btn btn-secondary btn-full" style="color:var(--primary); border-color:var(--primary);" onclick="showToast('Cleared local cache')">Clear Local Cache</button>
+          </div>
+        </div>
+      </div>
+
+
       <!-- ==================== BOTTOM NAV ==================== -->
       <nav class="bottom-nav">
         <button class="nav-item active" id="nav-orders">
@@ -243,6 +355,12 @@
             <line x1="6" y1="20" x2="6" y2="14" />
           </svg>
           <span>Analytics</span>
+        </button>
+        <button class="nav-item" id="nav-profile">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:4px;">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+          </svg>
+          <span>Profile</span>
         </button>
       </nav>
 

@@ -2,6 +2,10 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { Sequelize, DataTypes } = require('sequelize');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'; // Should be in .env
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -39,8 +43,21 @@ const sequelize = new Sequelize(
   }
 );
 
-// Define Model
+// Define User Model
+const User = sequelize.define('User', {
+  restaurantName: { type: DataTypes.STRING, allowNull: false },
+  email: { type: DataTypes.STRING, unique: true, allowNull: false },
+  mobile: { type: DataTypes.STRING, unique: true, allowNull: false },
+  location: { type: DataTypes.STRING },
+  password: { type: DataTypes.STRING, allowNull: false }
+});
+
+// Define RestoState Model
 const RestoState = sequelize.define('RestoState', {
+  userId: { 
+    type: DataTypes.INTEGER,
+    references: { model: User, key: 'id' }
+  },
   menu: {
     type: DataTypes.TEXT('long'),
     get() {
@@ -129,16 +146,69 @@ sequelize.sync({ alter: true })
   });
 
 app.get("/", (req, res) => {
-  res.send("ManageResto backend running with MySQL (v3 - Seeding Fixed)");
+  res.send("ManageResto backend running with MySQL (Auth Enabled)");
+});
+
+// --- Auth Middleware ---
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) return res.status(403).json({ error: 'Forbidden' });
+    req.user = user;
+    next();
+  });
+};
+
+// --- Auth Endpoints ---
+app.post('/api/signup', async (req, res) => {
+  try {
+    const { restaurantName, email, mobile, location, password } = req.body;
+    
+    // Check if user exists
+    const existing = await User.findOne({ where: { [Sequelize.Op.or]: [{ email }, { mobile }] } });
+    if (existing) return res.status(400).json({ error: 'User already exists' });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = await User.create({ restaurantName, email, mobile, location, password: hashedPassword });
+    
+    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET);
+    res.json({ token, user: { id: user.id, restaurantName, email, mobile, location } });
+  } catch (error) {
+    console.error('Signup error:', error);
+    res.status(500).json({ error: 'Signup failed' });
+  }
+});
+
+app.post('/api/login', async (req, res) => {
+  try {
+    const { login, password } = req.body; // login can be email or mobile
+    const user = await User.findOne({ 
+      where: { [Sequelize.Op.or]: [{ email: login }, { mobile: login }] } 
+    });
+
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET);
+    res.json({ token, user: { id: user.id, restaurantName: user.restaurantName, email: user.email, mobile: user.mobile, location: user.location } });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Login failed' });
+  }
 });
 
 // Get full state
-app.get('/api/state', async (req, res) => {
+app.get('/api/state', authenticateToken, async (req, res) => {
   try {
-    let state = await RestoState.findOne({ order: [['id', 'DESC']] });
+    let state = await RestoState.findOne({ where: { userId: req.user.id } });
     if (!state) {
-      // Initialize if empty
       state = await RestoState.create({
+        userId: req.user.id,
         menu: [],
         orders: [],
         waiters: [],
@@ -149,18 +219,18 @@ app.get('/api/state', async (req, res) => {
     res.json(state);
   } catch (error) {
     console.error('Fetch error:', error);
-    res.status(500).json({ error: 'Failed to fetch state from MySQL' });
+    res.status(500).json({ error: 'Failed to fetch state' });
   }
 });
 
 // Update full state
-app.post('/api/state', async (req, res) => {
+app.post('/api/state', authenticateToken, async (req, res) => {
   try {
     const { menu, orders, nextOrderId, nextMenuId, waiters } = req.body;
-
-    let state = await RestoState.findOne({ order: [['id', 'DESC']] });
+    let state = await RestoState.findOne({ where: { userId: req.user.id } });
+    
     if (!state) {
-      state = await RestoState.create({});
+      state = await RestoState.create({ userId: req.user.id });
     }
 
     if (menu !== undefined) state.menu = menu;
@@ -173,7 +243,7 @@ app.post('/api/state', async (req, res) => {
     res.json({ success: true, state });
   } catch (error) {
     console.error('Update error:', error);
-    res.status(500).json({ error: 'Failed to update state in MySQL' });
+    res.status(500).json({ error: 'Failed to update state' });
   }
 });
 

@@ -8,6 +8,13 @@ let lastSaveTime = 0;
 let fetchController = null;
 let saveQueue = [];
 let isProcessingQueue = false;
+let user = JSON.parse(localStorage.getItem('user')) || null;
+let token = localStorage.getItem('token') || null;
+
+const authHeaders = () => ({
+  'Content-Type': 'application/json',
+  ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+});
 
 async function fetchState() {
   // Block polling if a save is in flight OR we recently saved (5s window)
@@ -19,8 +26,15 @@ async function fetchState() {
 
   try {
     const res = await fetch(`${API_BASE}/api/state?ts=${Date.now()}`, {
-      signal: fetchController.signal
+      signal: fetchController.signal,
+      headers: authHeaders()
     });
+    
+    if (res.status === 401 || res.status === 403) {
+      handleLogout();
+      return;
+    }
+    
     const data = await res.json();
 
     // Final guard if we started a save while the fetch was returning
@@ -91,7 +105,7 @@ async function processSaveQueue() {
     lastSaveTime = Date.now();
     const res = await fetch(`${API_BASE}/api/state`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: JSON.stringify(payload)
     });
 
@@ -117,25 +131,135 @@ async function processSaveQueue() {
 
 
 async function loadState() {
+  if (!user || !token) {
+    showAuthUI(true);
+    return;
+  }
+
   try {
-    const res = await fetch(`${API_BASE}/api/state`);
-    if (!res.ok) throw new Error('API down');
+    const res = await fetch(`${API_BASE}/api/state`, {
+      headers: authHeaders()
+    });
+    
+    if (res.status === 401 || res.status === 403) {
+      handleLogout();
+      return;
+    }
 
     const data = await res.json();
 
-    // If DB is empty on first load, use DEFAULT_MENU
-    state.menu = data.menu && data.menu.length > 0 ? data.menu : DEFAULT_MENU.map(i => ({ ...i }));
+    state.menu = data.menu && data.menu.length > 0 ? data.menu : (typeof DEFAULT_MENU !== 'undefined' ? DEFAULT_MENU.map(i => ({ ...i })) : []);
     state.orders = data.orders || [];
     state.nextOrderId = data.nextOrderId || 10;
     state.nextMenuId = data.nextMenuId || 100;
-    state.waiters = data.waiters && data.waiters.length > 0 ? data.waiters : [...WAITERS];
+    state.waiters = data.waiters && data.waiters.length > 0 ? data.waiters : (typeof WAITERS !== 'undefined' ? [...WAITERS] : []);
+    
+    showAuthUI(false);
+    updateProfileUI();
 
   } catch (err) {
-    console.error('Failed to load state from server, using defaults', err);
-    state.menu = DEFAULT_MENU.map(i => ({ ...i }));
-    state.orders = [];
-    state.waiters = [...WAITERS];
+    console.error('Failed to load state', err);
+    if (token) showToast('Connection error');
   }
+}
+
+// --- AUTH UI HELPERS ---
+function showAuthUI(show) {
+  document.getElementById('landing-page').style.display = show ? 'flex' : 'none';
+  document.getElementById('app').style.display = show ? 'none' : 'flex';
+  if (!show) navigateTo('orders');
+}
+
+window.showAuthForm = function(type) {
+  document.querySelector('.landing-hero').style.display = 'none';
+  document.getElementById('auth-container').style.display = 'block';
+  document.getElementById('form-login').style.display = type === 'login' ? 'block' : 'none';
+  document.getElementById('form-signup').style.display = type === 'signup' ? 'block' : 'none';
+}
+
+window.hideAuthForm = function() {
+  document.getElementById('auth-container').style.display = 'none';
+  document.querySelector('.landing-hero').style.display = 'block';
+}
+
+window.handleSignup = async function() {
+  const restaurantName = document.getElementById('signup-resto-name').value.trim();
+  const email = document.getElementById('signup-email').value.trim();
+  const mobile = document.getElementById('signup-mobile').value.trim();
+  const location = document.getElementById('signup-location').value.trim();
+  const password = document.getElementById('signup-password').value;
+  const confirm = document.getElementById('signup-confirm-password').value;
+
+  if (!restaurantName || !email || !mobile || !password) { showToast('Please fill all fields'); return; }
+  if (password !== confirm) { showToast('Passwords do not match'); return; }
+  if (password.length < 8) { showToast('Password too short (min 8)'); return; }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ restaurantName, email, mobile, location, password })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Signup failed');
+
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(data.user));
+    token = data.token;
+    user = data.user;
+    
+    showToast(`Welcome, ${restaurantName}!`);
+    loadState();
+  } catch (err) {
+    showToast(err.message);
+  }
+}
+
+window.handleLogin = async function() {
+  const login = document.getElementById('login-identifier').value.trim();
+  const password = document.getElementById('login-password').value;
+
+  if (!login || !password) { showToast('Enter credentials'); return; }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ login, password })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Login failed');
+
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(data.user));
+    token = data.token;
+    user = data.user;
+
+    showToast('Login successful ✓');
+    loadState();
+  } catch (err) {
+    showToast(err.message);
+  }
+}
+
+window.handleLogout = function() {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  token = null;
+  user = null;
+  showAuthUI(true);
+  hideAuthForm();
+}
+
+function updateProfileUI() {
+  if (!user) return;
+  document.getElementById('profile-resto-name').textContent = user.restaurantName;
+  document.getElementById('profile-location').textContent = user.location || 'Location not set';
+  document.getElementById('profile-email').textContent = user.email;
+  document.getElementById('profile-mobile').textContent = user.mobile;
+  
+  const initials = user.restaurantName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+  document.getElementById('profile-initials').textContent = initials;
 }
 
 // ===== HELPERS =====
@@ -947,6 +1071,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('nav-orders').addEventListener('click', () => navigateTo('orders'));
   document.getElementById('nav-menu').addEventListener('click', () => navigateTo('menu'));
   document.getElementById('nav-analytics').addEventListener('click', () => navigateTo('analytics'));
+  document.getElementById('nav-profile').addEventListener('click', () => navigateTo('profile'));
+  document.getElementById('side-profile').addEventListener('click', () => navigateTo('profile'));
 
   document.getElementById('btn-new-order').addEventListener('click', openNewOrder);
   document.getElementById('btn-back-table').addEventListener('click', () => hideScreen('screen-table'));
