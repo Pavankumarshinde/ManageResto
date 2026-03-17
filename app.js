@@ -17,6 +17,9 @@ const authHeaders = () => ({
 });
 
 async function fetchState() {
+  // 🟢 Auth Guard: Only poll if we have a token!
+  if (!token) return;
+
   // Block polling if a save is in flight OR we recently saved (5s window)
   if (isSyncing || isProcessingQueue || (Date.now() - lastSaveTime < 5000)) return;
 
@@ -247,6 +250,9 @@ window.handleLogout = function() {
   localStorage.removeItem('user');
   token = null;
   user = null;
+  // Reset state to avoid showing previous user's data
+  state.orders = [];
+  state.menu = [];
   showAuthUI(true);
   hideAuthForm();
 }

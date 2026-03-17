@@ -13,6 +13,12 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// Debug Middleware: Log all requests
+app.use((req, res, next) => {
+  console.log(`📡 [${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
+
 // Validate Environment Variables
 const requiredEnvVars = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
 const missingVars = requiredEnvVars.filter(v => !process.env[v]);
@@ -56,6 +62,7 @@ const User = sequelize.define('User', {
 const RestoState = sequelize.define('RestoState', {
   userId: { 
     type: DataTypes.INTEGER,
+    unique: true, // Every user has exactly one state
     references: { model: User, key: 'id' }
   },
   menu: {
@@ -91,6 +98,10 @@ const RestoState = sequelize.define('RestoState', {
   nextOrderId: { type: DataTypes.INTEGER, defaultValue: 1 },
   nextMenuId: { type: DataTypes.INTEGER, defaultValue: 100 }
 });
+
+// Define Associations
+User.hasOne(RestoState, { foreignKey: 'userId', onDelete: 'CASCADE' });
+RestoState.belongsTo(User, { foreignKey: 'userId' });
 
 // Sync Database
 sequelize.sync({ alter: true })
@@ -146,7 +157,11 @@ sequelize.sync({ alter: true })
   });
 
 app.get("/", (req, res) => {
-  res.send("ManageResto backend running with MySQL (Auth Enabled)");
+  res.send("ManageResto Backend v5 - Debug Mode - System Ready");
+});
+
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok", version: "v5", timestamp: new Date() });
 });
 
 // --- Auth Middleware ---
