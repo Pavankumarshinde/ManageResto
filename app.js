@@ -198,7 +198,10 @@ window.handleSignup = async function() {
   if (password.length < 8) { showToast('Password too short (min 8)'); return; }
 
   try {
-    const res = await fetch(`${API_BASE}/api/signup`, {
+    const signupUrl = `${API_BASE}/api/signup`;
+    console.log('Sending signup to:', signupUrl);
+
+    const res = await fetch(signupUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ restaurantName, email, mobile, location, password })
@@ -214,6 +217,7 @@ window.handleSignup = async function() {
     showToast(`Welcome, ${restaurantName}!`);
     loadState();
   } catch (err) {
+    console.error('Signup Fetch Error:', err);
     showToast(err.message);
   }
 }

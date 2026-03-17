@@ -157,11 +157,11 @@ sequelize.sync({ alter: true })
   });
 
 app.get("/", (req, res) => {
-  res.send("ManageResto Backend v5 - Debug Mode - System Ready");
+  res.send("ManageResto Backend v6 - Final Auth Fix - System Ready");
 });
 
 app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", version: "v5", timestamp: new Date() });
+  res.json({ status: "ok", version: "6.0", timestamp: new Date(), env: !!process.env.DB_HOST });
 });
 
 // --- Auth Middleware ---
@@ -180,21 +180,28 @@ const authenticateToken = (req, res, next) => {
 
 // --- Auth Endpoints ---
 app.post('/api/signup', async (req, res) => {
+  console.log('📝 Received Signup Request:', req.body);
   try {
     const { restaurantName, email, mobile, location, password } = req.body;
     
+    if (!password) return res.status(400).json({ error: 'Password is required' });
+
     // Check if user exists
     const existing = await User.findOne({ where: { [Sequelize.Op.or]: [{ email }, { mobile }] } });
-    if (existing) return res.status(400).json({ error: 'User already exists' });
+    if (existing) {
+      console.log('⚠️ Signup failed: User already exists');
+      return res.status(400).json({ error: 'User with this email or mobile already exists' });
+    }
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await User.create({ restaurantName, email, mobile, location, password: hashedPassword });
     
+    console.log('✅ User created:', user.id);
     const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET);
     res.json({ token, user: { id: user.id, restaurantName, email, mobile, location } });
   } catch (error) {
-    console.error('Signup error:', error);
-    res.status(500).json({ error: 'Signup failed' });
+    console.error('❌ Signup error:', error);
+    res.status(500).json({ error: 'Signup failed', details: error.message });
   }
 });
 
@@ -264,7 +271,13 @@ app.post('/api/state', authenticateToken, async (req, res) => {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`========================================`);
-  console.log(`ManageResto Backend Running! (MySQL)`);
+  console.log(`ManageResto Backend v6 Running! (MySQL)`);
   console.log(`Access the API at http://localhost:${PORT}`);
   console.log(`========================================`);
+});
+
+// Catch-all for 404s
+app.use((req, res) => {
+  console.log(`🚫 404 Not Found: ${req.method} ${req.url}`);
+  res.status(404).json({ error: 'Route not found', path: req.url });
 });
