@@ -33,12 +33,12 @@ async function fetchState() {
       signal: fetchController.signal,
       headers: authHeaders()
     });
-    
+
     if (res.status === 401 || res.status === 403) {
       handleLogout();
       return;
     }
-    
+
     const data = await res.json();
 
     // Final guard if we started a save while the fetch was returning
@@ -144,7 +144,7 @@ async function loadState() {
     const res = await fetch(`${API_BASE}/api/state`, {
       headers: authHeaders()
     });
-    
+
     if (res.status === 401 || res.status === 403) {
       handleLogout();
       return;
@@ -157,7 +157,7 @@ async function loadState() {
     state.nextOrderId = data.nextOrderId || 10;
     state.nextMenuId = data.nextMenuId || 100;
     state.waiters = data.waiters && data.waiters.length > 0 ? data.waiters : (typeof WAITERS !== 'undefined' ? [...WAITERS] : []);
-    
+
     showAuthUI(false);
     updateProfileUI();
 
@@ -174,19 +174,19 @@ function showAuthUI(show) {
   if (!show) navigateTo('orders');
 }
 
-window.showAuthForm = function(type) {
+window.showAuthForm = function (type) {
   document.querySelector('.landing-hero').style.display = 'none';
   document.getElementById('auth-container').style.display = 'block';
   document.getElementById('form-login').style.display = type === 'login' ? 'block' : 'none';
   document.getElementById('form-signup').style.display = type === 'signup' ? 'block' : 'none';
 }
 
-window.hideAuthForm = function() {
+window.hideAuthForm = function () {
   document.getElementById('auth-container').style.display = 'none';
   document.querySelector('.landing-hero').style.display = 'block';
 }
 
-window.handleSignup = async function() {
+window.handleSignup = async function () {
   const restaurantName = document.getElementById('signup-resto-name').value.trim();
   const email = document.getElementById('signup-email').value.trim();
   const mobile = document.getElementById('signup-mobile').value.trim();
@@ -214,7 +214,7 @@ window.handleSignup = async function() {
     localStorage.setItem('user', JSON.stringify(data.user));
     token = data.token;
     user = data.user;
-    
+
     showToast(`Welcome, ${restaurantName}!`);
     loadState();
   } catch (err) {
@@ -223,7 +223,7 @@ window.handleSignup = async function() {
   }
 }
 
-window.handleLogin = async function() {
+window.handleLogin = async function () {
   const login = document.getElementById('login-identifier').value.trim();
   const password = document.getElementById('login-password').value;
 
@@ -250,7 +250,7 @@ window.handleLogin = async function() {
   }
 }
 
-window.handleLogout = function() {
+window.handleLogout = function () {
   localStorage.removeItem('token');
   localStorage.removeItem('user');
   token = null;
@@ -268,7 +268,7 @@ function updateProfileUI() {
   document.getElementById('profile-location').textContent = user.location || 'Location not set';
   document.getElementById('profile-email').textContent = user.email;
   document.getElementById('profile-mobile').textContent = user.mobile;
-  
+
   const initials = user.restaurantName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
   document.getElementById('profile-initials').textContent = initials;
 }
@@ -476,7 +476,7 @@ function openNewOrder() {
   document.getElementById('table-number-input').value = '';
   document.getElementById('waiter-search-input').value = '';
   document.getElementById('selected-waiter-name').value = '';
-  renderWaiters(''); 
+  renderWaiters('');
   showScreen('screen-table');
 }
 
@@ -527,35 +527,35 @@ function renderWaiters(q = '') {
   `).join('');
 }
 
-window.addNewWaiter = async function() {
+window.addNewWaiter = async function () {
   const name = prompt("Enter new waiter name:");
   if (!name || !name.trim()) return;
-  
+
   const trimmedName = name.trim();
   const exists = state.waiters.some(w => w.toLowerCase() === trimmedName.toLowerCase());
-  
+
   if (exists) {
     showToast("Waiter already exists");
     return;
   }
-  
+
   state.waiters.push(trimmedName);
   await saveState();
   renderWaiters(document.getElementById('waiter-search-input').value);
   showToast(`Added ${trimmedName}`);
 }
 
-window.deleteWaiter = async function(name) {
+window.deleteWaiter = async function (name) {
   // Check if waiter has ANY history in orders
   const hasHistory = state.orders.some(o => o.waiterName === name);
-  
+
   if (hasHistory) {
     alert(`Cannot delete ${name}: This waiter has order history.`);
     return;
   }
-  
+
   if (!confirm(`Are you sure you want to delete ${name}?`)) return;
-  
+
   state.waiters = state.waiters.filter(w => w !== name);
   await saveState();
   if (state.currentOrderFlow.waiterName === name) {
@@ -567,7 +567,7 @@ window.deleteWaiter = async function(name) {
   showToast(`Deleted ${name}`);
 }
 
-window.selectWaiter = function(name) {
+window.selectWaiter = function (name) {
   state.currentOrderFlow.waiterName = name;
   document.getElementById('selected-waiter-name').value = name;
   document.getElementById('waiter-search-input').value = name;
@@ -617,7 +617,7 @@ function renderOrderItems(search, category) {
 
     const cat = (m.category || '').toLowerCase();
 
-    if (cat.includes('tandoori')) emoji = '🔥🍗';
+    if (cat.includes('tandoori')) emoji = '🔥';
     else if (cat.includes('starter')) emoji = '🥗';
     else if (cat.includes('soup')) emoji = '🍲';
     else if (cat.includes('biryani')) emoji = '🍛';
@@ -819,7 +819,7 @@ function openMenuForm(id = null) {
   document.getElementById('form-item-category-pills').dataset.val = cat;
 
   setDietToggle(m ? m.type : 'Veg');
-  
+
   // Toggle delete button visibility
   const delBtn = document.getElementById('btn-delete-menu-item');
   if (delBtn) delBtn.style.display = id ? 'block' : 'none';
@@ -878,14 +878,14 @@ function saveMenuItem() {
 
 function deleteMenuItem() {
   if (!editingMenuId) return;
-  
+
   const m = getMenuItemById(editingMenuId);
   const confirmMsg = `Are you sure you want to delete "${m ? m.name : 'this item'}" from the menu? This cannot be undone.`;
-  
+
   if (!window.confirm(confirmMsg)) return;
 
   state.menu = state.menu.filter(item => item.id !== editingMenuId);
-  
+
   saveState();
   hideScreen('screen-menu-form');
   renderMenuPage();
@@ -975,7 +975,7 @@ function renderAnalytics() {
   const waiterList = document.getElementById('waiter-performance-list');
   if (waiterList) {
     const waiterCounts = {};
-    
+
     // Group monthly orders by waiterName
     monthOrders.forEach(o => {
       const name = o.waiterName || 'Unknown';
