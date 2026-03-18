@@ -88,12 +88,25 @@ async function checkStatus() {
 
   try {
     const res = await fetch(`${API_BASE}/api/status`, { headers: authHeaders() });
+    
+    // Fallback: If backend is old (404), do a full fetch only once every 30s
+    if (res.status === 404) {
+      const now = Date.now();
+      if (!window._lastFullSyncTime || (now - window._lastFullSyncTime > 30000)) {
+        console.warn("⚠️ /api/status 404. Falling back to 30s full sync.");
+        window._lastFullSyncTime = now;
+        await fetchState(true);
+      }
+      return;
+    }
+
     if (res.status === 401 || res.status === 403) { handleLogout(); return; }
     
     const data = await res.json();
     if (data.lastUpdated !== lastServerSyncTime) {
       console.log('🔄 Server state changed, fetching full state...');
       lastServerSyncTime = data.lastUpdated;
+      window._lastFullSyncTime = Date.now();
       await fetchState(true);
     }
   } catch (err) {
