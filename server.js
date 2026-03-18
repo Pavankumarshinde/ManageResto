@@ -42,19 +42,24 @@ const PORT = process.env.PORT || 3000;
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '5mb' }));
 
+// --- Database Config ---
+// .trim() on every value guards against copy-paste newlines in Render env vars
+const DB_NAME     = (process.env.DB_NAME     || 'manageresto').trim();
+const DB_USER     = (process.env.DB_USER     || 'root').trim();
+const DB_PASSWORD = (process.env.DB_PASSWORD || '').trim();
+const DB_HOST     = (process.env.DB_HOST     || 'localhost').trim();
+const DB_PORT     = parseInt((process.env.DB_PORT || '3306').trim(), 10);
+
+console.log(`🔌 Connecting to DB: ${DB_USER}@${DB_HOST}:${DB_PORT}/${DB_NAME}`);
+
 // --- Models ---
-const sequelize = new Sequelize(
-  process.env.DB_NAME || 'manageresto',
-  process.env.DB_USER || 'root',
-  process.env.DB_PASSWORD || '',   // ✅ Fixed: was DB_PASS, .env uses DB_PASSWORD
-  {
-    host: process.env.DB_HOST || 'localhost',
-    port: process.env.DB_PORT || 3306,
-    dialect: 'mysql',
-    logging: false,
-    pool: { max: 5, min: 0, acquire: 30000, idle: 10000 }
-  }
-);
+const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASSWORD, {
+  host: DB_HOST,
+  port: DB_PORT,
+  dialect: 'mysql',
+  logging: false,
+  pool: { max: 5, min: 0, acquire: 30000, idle: 10000 }
+});
 const User = sequelize.define('User', {
   restaurantName: { type: DataTypes.STRING, allowNull: false },
   email: { type: DataTypes.STRING, unique: true, allowNull: false },
@@ -110,7 +115,17 @@ const RestoState = sequelize.define('RestoState', {
 
 sequelize.authenticate()
   .then(() => console.log('✅ Database connected'))
-  .catch(err => console.error('❌ DB connection error:', err));
+  .catch(err => console.error('❌ DB connection error:', err.message));
+
+// Sync Database (table creation/migration) — errors here are logged but don't kill the server
+sequelize.sync({ alter: true })
+  .then(() => console.log('✅ MySQL Relational Database synced!'))
+  .catch(err => console.error('❌ DB sync error (check env vars in Render dashboard):', err.message));
+
+// Prevent unhandled DB errors from killing the process
+process.on('unhandledRejection', (reason) => {
+  console.error('⚠️ Unhandled rejection (server staying up):', reason?.message || reason);
+});
 
 // Relationships
 User.hasMany(Category, { foreignKey: 'userId' });
