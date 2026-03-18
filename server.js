@@ -352,6 +352,18 @@ const mapStateOutput = (categories, menu, waiters, orders) => {
   };
 };
 
+// Get Status (Lightweight check)
+app.get('/api/status', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    // We use the User model's updatedAt as a version stamp
+    const user = await User.findByPk(userId, { attributes: ['updatedAt'] });
+    res.json({ lastUpdated: user.updatedAt });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed' });
+  }
+});
+
 // Get State (Full snapshot)
 app.get('/api/state', authenticateToken, async (req, res) => {
   try {
@@ -367,11 +379,10 @@ app.get('/api/state', authenticateToken, async (req, res) => {
 
     res.json(mapStateOutput(categories, menu, waiters, orders));
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch state' });
+    res.status(500).json({ error: 'Failed' });
   }
 });
 
-// Update Full State (Legacy compatibility - maps to relational)
 app.post('/api/state', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -482,6 +493,9 @@ app.post('/api/state', authenticateToken, async (req, res) => {
     });
 
     const fullState = mapStateOutput(categories, updatedMenu, updatedWaiters, updatedOrders);
+
+    // ✅ Update user updatedAt to trigger polling clients
+    await User.update({ updatedAt: new Date() }, { where: { id: userId } });
 
     // ✅ 🔥 SINGLE SOURCE OF TRUTH EVENT
     io.to(`restaurant:${userId}`).emit('stateUpdated', fullState);

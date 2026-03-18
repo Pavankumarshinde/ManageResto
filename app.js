@@ -16,6 +16,8 @@ let lastSaveTime = 0;
 let user = JSON.parse(localStorage.getItem('user')) || null;
 let token = localStorage.getItem('token') || null;
 let socket = null;
+let pollInterval = null;
+let lastServerSyncTime = null;
 
 // ===== APPLICATION STATE =====
 let state = {
@@ -81,6 +83,24 @@ function initSocket() {
 let fetchController = null;
 let isSyncing = false;
 
+async function checkStatus() {
+  if (!token || isSyncing || isProcessingQueue) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/status`, { headers: authHeaders() });
+    if (res.status === 401 || res.status === 403) { handleLogout(); return; }
+    
+    const data = await res.json();
+    if (data.lastUpdated !== lastServerSyncTime) {
+      console.log('🔄 Server state changed, fetching full state...');
+      lastServerSyncTime = data.lastUpdated;
+      await fetchState(true);
+    }
+  } catch (err) {
+    console.warn("Status check failed", err);
+  }
+}
+
 async function fetchState(forced = false) {
   // 🟢 Auth Guard: Only poll if we have a token!
   if (!token) return;
@@ -107,6 +127,7 @@ async function fetchState(forced = false) {
     }
 
     const data = await res.json();
+    lastServerSyncTime = data.lastSyncTime || null; // Optional: server could return this
 
     // Final guard if we started a save while the fetch was returning
     if (!forced && (isProcessingQueue || (Date.now() - lastSaveTime < 5000))) return;
@@ -224,8 +245,9 @@ async function loadState() {
 
     initSocket(); // Initialize real-time updates
     
-    // Enable background 3-sec polling explicitly requested by user
-    setInterval(() => fetchState(false), 3000);
+    // Enable background 3-sec polling (lightweight status check)
+    if (pollInterval) clearInterval(pollInterval);
+    pollInterval = setInterval(checkStatus, 3000);
     
     showAuthUI(false);
     updateProfileUI();
@@ -333,6 +355,10 @@ window.handleLogout = function () {
   if (socket) {
     socket.disconnect();
     socket = null;
+  }
+  if (pollInterval) {
+    clearInterval(pollInterval);
+    pollInterval = null;
   }
   localStorage.removeItem('token');
   localStorage.removeItem('user');
