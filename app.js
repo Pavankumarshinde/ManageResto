@@ -1,17 +1,36 @@
 // ==========================================
-// ManageResto – Main Application Logic (v1.2 - Full Fix)
+// ManageResto – Main Application Logic (v1.3 - Connection Fix)
 // ==========================================
-console.log("🚀 ManageResto Frontend v1.2 Loading...");
-// Detect local vs deployed backend
-const API_BASE = "https://manageresto.onrender.com";
-// let isSyncing = false;
-// let lastSaveTime = 0;
-// let fetchController = null;
+console.log("🚀 ManageResto Frontend v1.3 Loading...");
+
+// Auto-detect backend: use localhost in development, Render in production
+const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? `http://localhost:${window.location.port || 3000}`
+  : "https://manageresto.onrender.com";
+
+console.log('🌐 API Base:', API_BASE);
+
 let saveQueue = [];
 let isProcessingQueue = false;
+let lastSaveTime = 0;
 let user = JSON.parse(localStorage.getItem('user')) || null;
 let token = localStorage.getItem('token') || null;
 let socket = null;
+
+// ===== APPLICATION STATE =====
+let state = {
+  menu: [],
+  orders: [],
+  nextOrderId: 1,
+  nextMenuId: 100,
+  currentOrderFlow: {
+    tableNumber: '',
+    waiterName: '',
+    items: {},
+    editingOrderId: null,
+  },
+  waiters: [],
+};
 
 const authHeaders = () => ({
   'Content-Type': 'application/json',
@@ -99,20 +118,7 @@ function initSocket() {
 //     fetchController = null;
 //   }
 // }
-// let state = {
-//   menu: [],
-//   orders: [],
-//   nextOrderId: 1,
-//   nextMenuId: 100,
-
-//   currentOrderFlow: {
-//     tableNumber: '',
-//     waiterName: '',
-//     items: {},
-//     editingOrderId: null,
-//   },
-//   waiters: [], // Loaded from backend
-// };
+// (state is now defined at the top of the file)
 
 // ===== PERSISTENCE (Node.js API) =====
 async function saveState() {
@@ -178,14 +184,22 @@ async function loadState() {
   }
 
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
     const res = await fetch(`${API_BASE}/api/state`, {
-      headers: authHeaders()
+      headers: authHeaders(),
+      signal: controller.signal
     });
+
+    clearTimeout(timeoutId);
 
     if (res.status === 401 || res.status === 403) {
       handleLogout();
       return;
     }
+
+    if (!res.ok) throw new Error(`Server error: ${res.status}`);
 
     const data = await res.json();
 
@@ -200,8 +214,18 @@ async function loadState() {
     updateProfileUI();
 
   } catch (err) {
-    console.error('Failed to load state', err);
-    if (token) showToast('Connection error');
+    console.error('Failed to load state:', err);
+    // Only show error toast if user is already logged in (not on initial cold start)
+    if (token) {
+      if (err.name === 'AbortError') {
+        showToast('⏳ Server is waking up, please retry in 30s');
+      } else {
+        showToast('⚠️ Connection error. Check your internet or server.');
+      }
+      // Still show the app with empty/cached state so user isn't stuck
+      showAuthUI(false);
+      updateProfileUI();
+    }
   }
 }
 

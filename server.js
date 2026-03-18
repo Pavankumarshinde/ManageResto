@@ -13,24 +13,49 @@ const { Server } = require('socket.io');
 
 const app = express();
 const server = http.createServer(app);
+
+const ALLOWED_ORIGINS = [
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'http://localhost:5500',
+  'http://127.0.0.1:5500',
+  'https://manageresto.onrender.com',
+  // Allow file:// for direct HTML open (Render / Vercel hosted frontends)
+];
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, Postman, same-origin)
+    if (!origin || ALLOWED_ORIGINS.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      // In production allow any origin since frontend can be hosted anywhere
+      callback(null, true);
+    }
+  },
+  credentials: true
+};
+
 const io = new Server(server, {
   cors: { origin: "*", methods: ["GET", "POST"] }
 });
 
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
-app.use(express.json({ limit: '5mb' })); // Increased limit for larger menus
+app.use(cors(corsOptions));
+app.use(express.json({ limit: '5mb' }));
 
 // --- Models ---
 const sequelize = new Sequelize(
   process.env.DB_NAME || 'manageresto',
   process.env.DB_USER || 'root',
-  process.env.DB_PASS || '',
+  process.env.DB_PASSWORD || '',   // ✅ Fixed: was DB_PASS, .env uses DB_PASSWORD
   {
     host: process.env.DB_HOST || 'localhost',
-    dialect: 'mysql', // or 'postgres' if you're using that
-    logging: false
+    port: process.env.DB_PORT || 3306,
+    dialect: 'mysql',
+    logging: false,
+    pool: { max: 5, min: 0, acquire: 30000, idle: 10000 }
   }
 );
 const User = sequelize.define('User', {
@@ -168,14 +193,7 @@ async function migrateUser(userId) {
   console.log(`✅ Migration for User ${userId} complete.`);
 }
 
-// Global Middleware
-app.use((err, req, res, next) => {
-  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
-    return res.status(400).json({ error: 'Invalid JSON payload' });
-  }
-  next();
-});
-
+// Request logger middleware
 app.use((req, res, next) => {
   console.log(`📡 [${new Date().toISOString()}] ${req.method} ${req.url}`);
   next();
@@ -394,8 +412,18 @@ app.post('/api/state', authenticateToken, async (req, res) => {
   }
 });
 
+// 404 handler – must be AFTER all routes
+app.use((req, res) => res.status(404).json({ error: 'Not found' }));
+
+// Global error handler – catches errors thrown in route handlers
+app.use((err, req, res, next) => {
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    return res.status(400).json({ error: 'Invalid JSON payload' });
+  }
+  console.error('❌ Unhandled error:', err);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`📡 ManageResto Scaled Backend v1.0 Running on port ${PORT}`);
 });
-
-app.use((req, res) => res.status(404).json({ error: 'Not found' }));
