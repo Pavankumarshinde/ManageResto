@@ -377,28 +377,35 @@ app.post('/api/state', authenticateToken, async (req, res) => {
     const userId = req.user.id;
     const { menu, orders, waiters } = req.body;
 
-    // --- UPDATE DB (same as your code) ---
     if (menu) {
-      for (const item of menu) {
-        const [cat] = await Category.findOrCreate({ where: { name: item.category, userId } });
+      const uniqueCats = [...new Set(menu.map(i => i.category))];
+      const categoryMap = {};
+      for (const catName of uniqueCats) {
+        const [cat] = await Category.findOrCreate({ where: { name: catName, userId } });
+        categoryMap[catName] = cat.id;
+      }
+
+      await Promise.all(menu.map(async (item) => {
+        const catId = categoryMap[item.category];
+        if (!catId) return;
         const [menuItem, created] = await MenuItem.findOrCreate({
             where: { userId, frontendId: item.id },
-            defaults: { name: item.name, price: item.price, type: item.type, image: item.image, categoryId: cat.id }
+            defaults: { name: item.name, price: item.price, type: item.type, image: item.image, categoryId: catId }
         });
         if (!created) {
-            await menuItem.update({ name: item.name, price: item.price, type: item.type, image: item.image, categoryId: cat.id });
+            await menuItem.update({ name: item.name, price: item.price, type: item.type, image: item.image, categoryId: catId });
         }
-      }
+      }));
     }
 
     if (waiters) {
-      for (const name of waiters) {
+      await Promise.all(waiters.map(async (name) => {
         await Waiter.findOrCreate({ where: { name, userId } });
-      }
+      }));
     }
 
     if (orders) {
-      for (const o of orders) {
+      await Promise.all(orders.map(async (o) => {
         const [order, created] = await Order.findOrCreate({
             where: { userId, frontendId: o.id },
             defaults: { tableNumber: o.tableNumber, waiterName: o.waiterName, paid: o.paid, createdAt: o.createdAt }
@@ -422,7 +429,7 @@ app.post('/api/state', authenticateToken, async (req, res) => {
             }
           }
         }
-      }
+      }));
     }
 
     // ✅ 🔥 FETCH LATEST STATE (IMPORTANT)

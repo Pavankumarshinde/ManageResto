@@ -78,54 +78,59 @@ function initSocket() {
   });
 }
 
-// async function fetchState(forced = false) {
-//   // 🟢 Auth Guard: Only poll if we have a token!
-//   if (!token) return;
+let fetchController = null;
+let isSyncing = false;
 
-//   // If not forced, block if syncing or recently saved
-//   if (!forced) {
-//     if (isSyncing || isProcessingQueue || (Date.now() - lastSaveTime < 5000)) return;
-//   }
+async function fetchState(forced = false) {
+  // 🟢 Auth Guard: Only poll if we have a token!
+  if (!token) return;
 
-//   // Abort any previous fetch if still running
-//   if (fetchController) fetchController.abort();
-//   fetchController = new AbortController();
+  // If not forced, block if syncing or recently saved
+  if (!forced) {
+    if (isSyncing || isProcessingQueue || (Date.now() - lastSaveTime < 5000)) return;
+  }
 
-//   try {
-//     const res = await fetch(`${API_BASE}/api/state?ts=${Date.now()}`, {
-//       signal: fetchController.signal,
-//       headers: authHeaders()
-//     });
+  // Abort any previous fetch if still running
+  if (fetchController) fetchController.abort();
+  fetchController = new AbortController();
+  isSyncing = true;
 
-//     if (res.status === 401 || res.status === 403) {
-//       handleLogout();
-//       return;
-//     }
+  try {
+    const res = await fetch(`${API_BASE}/api/state?ts=${Date.now()}`, {
+      signal: fetchController.signal,
+      headers: authHeaders()
+    });
 
-//     const data = await res.json();
+    if (res.status === 401 || res.status === 403) {
+      handleLogout();
+      return;
+    }
 
-//     // Final guard if we started a save while the fetch was returning
-//     if (!forced && (isSyncing || isProcessingQueue || (Date.now() - lastSaveTime < 5000))) return;
+    const data = await res.json();
 
-//     // 🔴 Update local state
-//     state.menu = data.menu || [];
-//     state.orders = data.orders || [];
-//     state.nextOrderId = data.nextOrderId || 1;
-//     state.nextMenuId = data.nextMenuId || 100;
-//     state.waiters = data.waiters || [];
+    // Final guard if we started a save while the fetch was returning
+    if (!forced && (isProcessingQueue || (Date.now() - lastSaveTime < 5000))) return;
 
-//     // 🔴 Re-render UI
-//     if (currentPage === 'orders') renderOrders();
-//     if (currentPage === 'menu') renderMenuPage();
-//     if (currentPage === 'analytics') renderAnalytics();
+    // 🔴 Update local state
+    state.menu = data.menu || [];
+    state.orders = data.orders || [];
+    state.nextOrderId = data.nextOrderId || 1;
+    state.nextMenuId = data.nextMenuId || 100;
+    state.waiters = data.waiters || [];
 
-//   } catch (err) {
-//     if (err.name === 'AbortError') return;
-//     console.error("Fetch failed", err);
-//   } finally {
-//     fetchController = null;
-//   }
-// }
+    // 🔴 Re-render UI
+    if (currentPage === 'orders') renderOrders();
+    if (currentPage === 'menu') renderMenuPage();
+    if (currentPage === 'analytics') renderAnalytics();
+
+  } catch (err) {
+    if (err.name === 'AbortError') return;
+    console.error("Fetch failed", err);
+  } finally {
+    fetchController = null;
+    isSyncing = false;
+  }
+}
 // (state is now defined at the top of the file)
 
 // ===== PERSISTENCE (Node.js API) =====
@@ -218,6 +223,10 @@ async function loadState() {
     state.waiters = data.waiters && data.waiters.length > 0 ? data.waiters : (typeof WAITERS !== 'undefined' ? [...WAITERS] : []);
 
     initSocket(); // Initialize real-time updates
+    
+    // Enable background 3-sec polling explicitly requested by user
+    setInterval(() => fetchState(false), 3000);
+    
     showAuthUI(false);
     updateProfileUI();
 
