@@ -248,8 +248,8 @@ app.get("/", (req, res) => {
             <circle cx="75" cy="25" r="10" fill="#ffc107"/>
           </svg>
         </div>
-        <h1>ManageResto Scaled Backend v1.0</h1>
-        <p>Relational DB + WebSockets Enabled</p>
+        <h1>ManageResto Scaled Backend v1.1</h1>
+        <p>Relational DB + WebSockets Enabled + Lightweight Sync</p>
         <div class="status">● System Scalable & Ready</div>
       </body>
     </html>
@@ -257,7 +257,7 @@ app.get("/", (req, res) => {
 });
 
 app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", version: "1.0-scaled", socketReady: true });
+  res.json({ status: "ok", version: "1.1-lightweight-sync", socketReady: true });
 });
 
 app.get("/favicon.ico", (req, res) => res.sendFile(path.join(__dirname, "backend_icon.svg")));
@@ -356,10 +356,12 @@ const mapStateOutput = (categories, menu, waiters, orders) => {
 app.get('/api/status', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
+    console.log(`🔍 [Status Check] User ${userId} requested status`);
     // We use the User model's updatedAt as a version stamp
     const user = await User.findByPk(userId, { attributes: ['updatedAt'] });
     res.json({ lastUpdated: user.updatedAt });
   } catch (error) {
+    console.error('Status Error:', error);
     res.status(500).json({ error: 'Failed' });
   }
 });
