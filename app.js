@@ -42,10 +42,10 @@ function initSocket() {
 
   socket = io(API_BASE, {
     auth: { token },
-    transports: ['websocket', 'polling'],  // try WebSocket first, fall back to polling
-    reconnectionAttempts: 5,     // stop retrying after 5 failures (not infinite)
-    reconnectionDelay: 3000,     // wait 3s between attempts
-    timeout: 10000               // 10s connection timeout
+    transports: ['polling', 'websocket'],  // Start with polling for session affinity, then upgrade
+    reconnectionAttempts: 5,
+    reconnectionDelay: 3000,
+    timeout: 10000
   });
 
   socket.on('connect', () => {
