@@ -377,59 +377,98 @@ app.post('/api/state', authenticateToken, async (req, res) => {
     const userId = req.user.id;
     const { menu, orders, waiters } = req.body;
 
-    if (menu) {
+    if (menu && menu.length > 0) {
       const uniqueCats = [...new Set(menu.map(i => i.category))];
       const categoryMap = {};
       for (const catName of uniqueCats) {
+        if (!catName) continue;
         const [cat] = await Category.findOrCreate({ where: { name: catName, userId } });
         categoryMap[catName] = cat.id;
       }
 
-      await Promise.all(menu.map(async (item) => {
-        const catId = categoryMap[item.category];
-        if (!catId) return;
-        const [menuItem, created] = await MenuItem.findOrCreate({
-            where: { userId, frontendId: item.id },
-            defaults: { name: item.name, price: item.price, type: item.type, image: item.image, categoryId: catId }
-        });
-        if (!created) {
-            await menuItem.update({ name: item.name, price: item.price, type: item.type, image: item.image, categoryId: catId });
-        }
+      const menuData = menu.map(item => ({
+        userId,
+        frontendId: item.id,
+        name: item.name,
+        price: item.price,
+        type: item.type,
+        image: item.image,
+        categoryId: categoryMap[item.category]
       }));
+      
+      await MenuItem.bulkCreate(menuData, {
+        updateOnDuplicate: ["name", "price", "type", "image", "categoryId"]
+      });
     }
 
-    if (waiters) {
-      await Promise.all(waiters.map(async (name) => {
-        await Waiter.findOrCreate({ where: { name, userId } });
-      }));
+    if (waiters && Array.isArray(waiters)) {
+      await Waiter.destroy({ where: { userId } });
+      if (waiters.length > 0) {
+        const waiterData = waiters.map(name => ({ name, userId }));
+        await Waiter.bulkCreate(waiterData);
+      }
     }
 
-    if (orders) {
-      await Promise.all(orders.map(async (o) => {
-        const [order, created] = await Order.findOrCreate({
-            where: { userId, frontendId: o.id },
-            defaults: { tableNumber: o.tableNumber, waiterName: o.waiterName, paid: o.paid, createdAt: o.createdAt }
-        });
-        if (!created) {
-            await order.update({ tableNumber: o.tableNumber, waiterName: o.waiterName, paid: o.paid, createdAt: o.createdAt });
-        }
+    if (orders && orders.length > 0) {
+      const orderData = orders.map(o => ({
+        userId,
+        frontendId: o.id,
+        tableNumber: o.tableNumber,
+        waiterName: o.waiterName,
+        paid: !!o.paid,
+        createdAt: o.createdAt || new Date()
+      }));
 
-        if (o.items) {
-          await OrderItem.destroy({ where: { orderId: order.id } });
-          for (const item of o.items) {
-            const dbMenu = await MenuItem.findOne({ where: { userId, frontendId: item.menuItemId } });
-            if (dbMenu) {
-              await OrderItem.create({
-                orderId: order.id,
-                menuItemId: dbMenu.id,
-                qty: item.qty,
-                status: item.status,
-                priceAtTime: item.priceAtTime || 0
-              });
-            }
+      await Order.bulkCreate(orderData, {
+        updateOnDuplicate: ["tableNumber", "waiterName", "paid", "createdAt"]
+      });
+
+      const orderFrontendIds = orders.map(o => o.id);
+      const dbOrders = await Order.findAll({ 
+        where: { userId, frontendId: orderFrontendIds }, 
+        attributes: ['id', 'frontendId'] 
+      });
+      
+      const orderMap = {};
+      const orderDbIds = [];
+      dbOrders.forEach(o => { 
+        orderMap[o.frontendId] = o.id; 
+        orderDbIds.push(o.id);
+      });
+
+      if (orderDbIds.length > 0) {
+        await OrderItem.destroy({ where: { orderId: orderDbIds } });
+      }
+
+      const dbMenuItems = await MenuItem.findAll({ 
+        where: { userId }, 
+        attributes: ['id', 'frontendId'] 
+      });
+      const menuMap = {};
+      dbMenuItems.forEach(m => { menuMap[m.frontendId] = m.id; });
+
+      const itemsToCreate = [];
+      for (const o of orders) {
+        const dbOrderId = orderMap[o.id];
+        if (!dbOrderId || !o.items) continue;
+        
+        for (const item of o.items) {
+          const dbMenuId = menuMap[item.menuItemId];
+          if (dbMenuId) {
+            itemsToCreate.push({
+              orderId: dbOrderId,
+              menuItemId: dbMenuId,
+              qty: item.qty || 1,
+              status: item.status || 'Preparing',
+              priceAtTime: item.priceAtTime || 0
+            });
           }
         }
-      }));
+      }
+
+      if (itemsToCreate.length > 0) {
+        await OrderItem.bulkCreate(itemsToCreate);
+      }
     }
 
     // ✅ 🔥 FETCH LATEST STATE (IMPORTANT)
