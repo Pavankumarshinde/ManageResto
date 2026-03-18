@@ -59,27 +59,10 @@ function initSocket() {
     console.warn('⚠️ Socket connection failed (app still works):', err.message);
   });
 
-  // 🔥 Instead of refetch → directly update state
+  // 🔥 Sync is now handled via Polling (checkStatus) to ensure simplicity and stability.
+  // Websockets are kept only for real-time join/leave if needed.
   socket.on('stateUpdated', (data) => {
-    // 🛡️ GUARD: If we are currently saving or just saved, IGNORE server updates
-    // to prevent "flipping" back to old state before the server reflects our latest change.
-    if (isProcessingQueue || (Date.now() - lastSaveTime < 2500)) {
-      console.log('⏳ Ignoring socket update (Sync in progress/recent)');
-      return;
-    }
-
-    console.log('🔔 Full state update received');
-
-    state.menu = data.menu || [];
-    state.orders = data.orders || [];
-    state.nextOrderId = data.nextOrderId || 1;
-    state.nextMenuId = data.nextMenuId || 100;
-    state.waiters = data.waiters || [];
-
-    // Re-render UI
-    if (currentPage === 'orders') renderOrders();
-    if (currentPage === 'menu') renderMenuPage();
-    if (currentPage === 'analytics') renderAnalytics();
+    console.log('🔔 Socket update ignored (using polling sync)');
   });
 
   socket.on('disconnect', () => {
@@ -147,11 +130,12 @@ async function fetchState(forced = false) {
     }
 
     const data = await res.json();
-    lastServerSyncTime = data.lastSyncTime || null;
+    lastServerSyncTime = data.lastUpdated;
 
-    // Final guard if we started a save or a socket update arrived while the fetch was returning
-    if (!forced && (isProcessingQueue || (Date.now() - lastSaveTime < 2500))) {
-      console.log('⏳ Discarding fetch result (User is active)');
+    // 🛡️ GUARD: If we are currently saving or just saved (within 5s), IGNORE server updates
+    // This allows the server enough time to process and return the NEW state in the NEXT poll.
+    if (!forced && (isProcessingQueue || (Date.now() - lastSaveTime < 5000))) {
+      console.log('⏳ Discarding fetch result (User recently modified state)');
       return;
     }
 
