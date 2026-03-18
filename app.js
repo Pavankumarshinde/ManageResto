@@ -4,9 +4,9 @@
 console.log("🚀 ManageResto Frontend v1.2 Loading...");
 // Detect local vs deployed backend
 const API_BASE = "https://manageresto.onrender.com";
-let isSyncing = false;
-let lastSaveTime = 0;
-let fetchController = null;
+// let isSyncing = false;
+// let lastSaveTime = 0;
+// let fetchController = null;
 let saveQueue = [];
 let isProcessingQueue = false;
 let user = JSON.parse(localStorage.getItem('user')) || null;
@@ -19,29 +19,31 @@ const authHeaders = () => ({
 });
 
 function initSocket() {
-  if (socket) return;
-  if (!user) return;
+  if (socket || !user) return;
 
-  socket = io(API_BASE);
-  
+  socket = io(API_BASE, {
+    auth: { token }   // send JWT to backend
+  });
+
   socket.on('connect', () => {
     console.log('🔌 Connected to WebSocket');
     socket.emit('join', user.id);
   });
 
-  socket.on('orderUpdated', () => {
-    console.log('🔔 Orders updated via socket');
-    fetchState(true); // Forced fetch
-  });
+  // 🔥 Instead of refetch → directly update state
+  socket.on('stateUpdated', (data) => {
+    console.log('🔔 Full state update received');
 
-  socket.on('menuUpdated', () => {
-    console.log('🔔 Menu updated via socket');
-    fetchState(true);
-  });
+    state.menu = data.menu || [];
+    state.orders = data.orders || [];
+    state.nextOrderId = data.nextOrderId || 1;
+    state.nextMenuId = data.nextMenuId || 100;
+    state.waiters = data.waiters || [];
 
-  socket.on('waiterUpdated', () => {
-    console.log('🔔 Waiters updated via socket');
-    fetchState(true);
+    // Re-render UI
+    if (currentPage === 'orders') renderOrders();
+    if (currentPage === 'menu') renderMenuPage();
+    if (currentPage === 'analytics') renderAnalytics();
   });
 
   socket.on('disconnect', () => {
@@ -49,68 +51,68 @@ function initSocket() {
   });
 }
 
-async function fetchState(forced = false) {
-  // 🟢 Auth Guard: Only poll if we have a token!
-  if (!token) return;
+// async function fetchState(forced = false) {
+//   // 🟢 Auth Guard: Only poll if we have a token!
+//   if (!token) return;
 
-  // If not forced, block if syncing or recently saved
-  if (!forced) {
-    if (isSyncing || isProcessingQueue || (Date.now() - lastSaveTime < 5000)) return;
-  }
+//   // If not forced, block if syncing or recently saved
+//   if (!forced) {
+//     if (isSyncing || isProcessingQueue || (Date.now() - lastSaveTime < 5000)) return;
+//   }
 
-  // Abort any previous fetch if still running
-  if (fetchController) fetchController.abort();
-  fetchController = new AbortController();
+//   // Abort any previous fetch if still running
+//   if (fetchController) fetchController.abort();
+//   fetchController = new AbortController();
 
-  try {
-    const res = await fetch(`${API_BASE}/api/state?ts=${Date.now()}`, {
-      signal: fetchController.signal,
-      headers: authHeaders()
-    });
+//   try {
+//     const res = await fetch(`${API_BASE}/api/state?ts=${Date.now()}`, {
+//       signal: fetchController.signal,
+//       headers: authHeaders()
+//     });
 
-    if (res.status === 401 || res.status === 403) {
-      handleLogout();
-      return;
-    }
+//     if (res.status === 401 || res.status === 403) {
+//       handleLogout();
+//       return;
+//     }
 
-    const data = await res.json();
+//     const data = await res.json();
 
-    // Final guard if we started a save while the fetch was returning
-    if (!forced && (isSyncing || isProcessingQueue || (Date.now() - lastSaveTime < 5000))) return;
+//     // Final guard if we started a save while the fetch was returning
+//     if (!forced && (isSyncing || isProcessingQueue || (Date.now() - lastSaveTime < 5000))) return;
 
-    // 🔴 Update local state
-    state.menu = data.menu || [];
-    state.orders = data.orders || [];
-    state.nextOrderId = data.nextOrderId || 1;
-    state.nextMenuId = data.nextMenuId || 100;
-    state.waiters = data.waiters || [];
+//     // 🔴 Update local state
+//     state.menu = data.menu || [];
+//     state.orders = data.orders || [];
+//     state.nextOrderId = data.nextOrderId || 1;
+//     state.nextMenuId = data.nextMenuId || 100;
+//     state.waiters = data.waiters || [];
 
-    // 🔴 Re-render UI
-    if (currentPage === 'orders') renderOrders();
-    if (currentPage === 'menu') renderMenuPage();
-    if (currentPage === 'analytics') renderAnalytics();
+//     // 🔴 Re-render UI
+//     if (currentPage === 'orders') renderOrders();
+//     if (currentPage === 'menu') renderMenuPage();
+//     if (currentPage === 'analytics') renderAnalytics();
 
-  } catch (err) {
-    if (err.name === 'AbortError') return;
-    console.error("Fetch failed", err);
-  } finally {
-    fetchController = null;
-  }
-}
-let state = {
-  menu: [],
-  orders: [],
-  nextOrderId: 1,
-  nextMenuId: 100,
+//   } catch (err) {
+//     if (err.name === 'AbortError') return;
+//     console.error("Fetch failed", err);
+//   } finally {
+//     fetchController = null;
+//   }
+// }
+// let state = {
+//   menu: [],
+//   orders: [],
+//   nextOrderId: 1,
+//   nextMenuId: 100,
 
-  currentOrderFlow: {
-    tableNumber: '',
-    waiterName: '',
-    items: {},
-    editingOrderId: null,
-  },
-  waiters: [], // Loaded from backend
-};
+//   currentOrderFlow: {
+//     tableNumber: '',
+//     waiterName: '',
+//     items: {},
+//     editingOrderId: null,
+//   },
+//   waiters: [], // Loaded from backend
+// };
 
 // ===== PERSISTENCE (Node.js API) =====
 async function saveState() {
@@ -131,7 +133,7 @@ async function processSaveQueue() {
   if (saveQueue.length === 0) return;
 
   isProcessingQueue = true;
-  if (fetchController) fetchController.abort(); // Kill polling
+  // if (fetchController) fetchController.abort(); // Kill polling
 
   // Always take the LATEST state from the queue
   const payload = saveQueue[saveQueue.length - 1];
@@ -144,6 +146,9 @@ async function processSaveQueue() {
       headers: authHeaders(),
       body: JSON.stringify(payload)
     });
+    if (socket) {
+      socket.emit('stateChanged'); // notify server
+    }
 
     if (!res.ok) throw new Error('Save failed');
 
