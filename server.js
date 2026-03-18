@@ -29,7 +29,7 @@ const sequelize = new Sequelize(
   process.env.DB_PASS || '',
   {
     host: process.env.DB_HOST || 'localhost',
-    dialect: 'mysql', // or 'postgres' if you're using that
+    dialect: 'postgres', // or 'postgres' if you're using that
     logging: false
   }
 );
