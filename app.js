@@ -18,6 +18,7 @@ let token = localStorage.getItem('token') || null;
 let socket = null;
 let pollInterval = null;
 let lastServerSyncTime = null;
+let lastLocalChangeTime = 0; // 🛡️ Versioning: Tracks when we last modified the local state
 
 // ===== APPLICATION STATE =====
 let state = {
@@ -59,10 +60,9 @@ function initSocket() {
     console.warn('⚠️ Socket connection failed (app still works):', err.message);
   });
 
-  // 🔥 Sync is now handled via Polling (checkStatus) to ensure simplicity and stability.
-  // Websockets are kept only for real-time join/leave if needed.
+  // 🔥 Polling-only sync enabled. Sockets used only for connection health.
   socket.on('stateUpdated', (data) => {
-    console.log('🔔 Socket update ignored (using polling sync)');
+    // console.log('🔔 Socket update ignored (polling only)');
   });
 
   socket.on('disconnect', () => {
@@ -93,10 +93,13 @@ async function checkStatus() {
     if (res.status === 401 || res.status === 403) { handleLogout(); return; }
     
     const data = await res.json();
-    if (data.lastUpdated !== lastServerSyncTime) {
-      console.log('🔄 Server state changed, fetching full state...');
-      lastServerSyncTime = data.lastUpdated;
-      window._lastFullSyncTime = Date.now();
+    const serverTime = new Date(data.lastUpdated).getTime();
+    
+    // 🛡️ SYNC GUARD: Only trigger fetch if the server has data NEWER than our last local change
+    // This prevents "flipping" during the 1s window after a save.
+    if (serverTime > lastServerSyncTime && serverTime > lastLocalChangeTime) {
+      console.log('🔄 Remote change detected, fetching...');
+      lastServerSyncTime = serverTime;
       await fetchState(true);
     }
   } catch (err) {
@@ -130,10 +133,15 @@ async function fetchState(forced = false) {
     }
 
     const data = await res.json();
-    lastServerSyncTime = data.lastUpdated;
+    const serverTime = new Date(data.lastUpdated || Date.now()).getTime();
 
-    // Discard if user started another action while fetch was returning
-    if (!forced && (isProcessingQueue)) return;
+    // Final guard: Don't overwrite if we've made new changes while this fetch was in flight
+    if (!forced && lastLocalChangeTime > serverTime) {
+        console.log('⏳ Discarding stale fetch (local state is newer)');
+        return;
+    }
+    
+    lastServerSyncTime = serverTime;
 
     // 🔴 Update local state
     state.menu = data.menu || [];
@@ -159,6 +167,8 @@ async function fetchState(forced = false) {
 
 // ===== PERSISTENCE (Node.js API) =====
 async function saveState() {
+  lastLocalChangeTime = Date.now(); // Mark local state as "fresher" than current server state
+  
   // Push to queue to prevent concurrent POST races
   saveQueue.push({
     menu: [...state.menu],
