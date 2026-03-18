@@ -257,7 +257,7 @@ app.get("/", (req, res) => {
 });
 
 app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", version: "1.1-lightweight-sync", socketReady: true });
+  res.json({ status: "ok", version: "1.2-atomic-sync", socketReady: true });
 });
 
 app.get("/favicon.ico", (req, res) => res.sendFile(path.join(__dirname, "backend_icon.svg")));
