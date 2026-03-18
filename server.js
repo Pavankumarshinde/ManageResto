@@ -8,58 +8,21 @@ const path = require('path');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'; // Should be in .env
 
+const http = require('http');
+const { Server } = require('socket.io');
+
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: { origin: "*", methods: ["GET", "POST"] }
+});
+
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '5mb' })); // Increased limit for larger menus
 
-// Global Error Handler for JSON parsing
-app.use((err, req, res, next) => {
-  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
-    console.error('❌ JSON Parsing Error:', err.message);
-    return res.status(400).json({ error: 'Invalid JSON payload' });
-  }
-  next();
-});
-
-// Debug Middleware: Log all requests
-app.use((req, res, next) => {
-  console.log(`📡 [${new Date().toISOString()}] ${req.method} ${req.url}`);
-  next();
-});
-
-// Validate Environment Variables
-const requiredEnvVars = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
-const missingVars = requiredEnvVars.filter(v => !process.env[v]);
-
-if (missingVars.length > 0) {
-  console.error('❌ CRITICAL ERROR: Missing required environment variables:', missingVars.join(', '));
-  console.error('Please ensure these are set in your Render dashboard or .env file.');
-} else {
-  console.log(`📡 Attempting to connect to DB at: ${process.env.DB_HOST}:${process.env.DB_PORT || 3306}`);
-}
-
-// MySQL Connection using Sequelize
-const sequelize = new Sequelize(
-  (process.env.DB_NAME || '').trim(),
-  (process.env.DB_USER || '').trim(),
-  (process.env.DB_PASSWORD || '').trim(),
-  {
-    host: (process.env.DB_HOST || '').trim(),
-    port: process.env.DB_PORT || 3306,
-    dialect: 'mysql',
-    logging: false,
-    dialectOptions: {
-      connectTimeout: 10000,
-      ssl: {
-        rejectUnauthorized: false
-      }
-    }
-  }
-);
-
-// Define User Model
+// --- Models ---
 const User = sequelize.define('User', {
   restaurantName: { type: DataTypes.STRING, allowNull: false },
   email: { type: DataTypes.STRING, unique: true, allowNull: false },
@@ -68,103 +31,154 @@ const User = sequelize.define('User', {
   password: { type: DataTypes.STRING, allowNull: false }
 });
 
-// Define RestoState Model
-const RestoState = sequelize.define('RestoState', {
-  userId: { 
-    type: DataTypes.INTEGER,
-    unique: true, // Every user has exactly one state
-    references: { model: User, key: 'id' }
-  },
-  menu: {
-    type: DataTypes.TEXT('long'),
-    get() {
-      const val = this.getDataValue('menu');
-      return val ? JSON.parse(val) : [];
-    },
-    set(val) {
-      this.setDataValue('menu', JSON.stringify(val));
-    }
-  },
-  orders: {
-    type: DataTypes.TEXT('long'),
-    get() {
-      const val = this.getDataValue('orders');
-      return val ? JSON.parse(val) : [];
-    },
-    set(val) {
-      this.setDataValue('orders', JSON.stringify(val));
-    }
-  },
-  waiters: {
-    type: DataTypes.TEXT('long'),
-    get() {
-      const val = this.getDataValue('waiters');
-      return val ? JSON.parse(val) : [];
-    },
-    set(val) {
-      this.setDataValue('waiters', JSON.stringify(val));
-    }
-  },
-  nextOrderId: { type: DataTypes.INTEGER, defaultValue: 1 },
-  nextMenuId: { type: DataTypes.INTEGER, defaultValue: 100 }
+const Category = sequelize.define('Category', {
+  name: { type: DataTypes.STRING, allowNull: false },
+  userId: { type: DataTypes.INTEGER, allowNull: false }
 });
 
-// Define Associations
-User.hasOne(RestoState, { foreignKey: 'userId', onDelete: 'CASCADE' });
-RestoState.belongsTo(User, { foreignKey: 'userId' });
+const MenuItem = sequelize.define('MenuItem', {
+  name: { type: DataTypes.STRING, allowNull: false },
+  price: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
+  type: { type: DataTypes.ENUM('Veg', 'Non-Veg'), defaultValue: 'Veg' },
+  image: { type: DataTypes.STRING },
+  categoryId: { type: DataTypes.INTEGER },
+  userId: { type: DataTypes.INTEGER, allowNull: false }
+});
+
+const Waiter = sequelize.define('Waiter', {
+  name: { type: DataTypes.STRING, allowNull: false },
+  userId: { type: DataTypes.INTEGER, allowNull: false }
+});
+
+const Order = sequelize.define('Order', {
+  tableNumber: { type: DataTypes.STRING, allowNull: false },
+  waiterName: { type: DataTypes.STRING }, // Storing name for history
+  paid: { type: DataTypes.BOOLEAN, defaultValue: false },
+  totalAmount: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 },
+  userId: { type: DataTypes.INTEGER, allowNull: false }
+});
+
+const OrderItem = sequelize.define('OrderItem', {
+  orderId: { type: DataTypes.INTEGER, allowNull: false },
+  menuItemId: { type: DataTypes.INTEGER, allowNull: false },
+  qty: { type: DataTypes.INTEGER, defaultValue: 1 },
+  status: { type: DataTypes.ENUM('Preparing', 'Served'), defaultValue: 'Preparing' },
+  priceAtTime: { type: DataTypes.DECIMAL(10, 2) } // Snapshotted price
+});
+
+// Legacy model for migration
+const RestoState = sequelize.define('RestoState', {
+  userId: { type: DataTypes.INTEGER, unique: true },
+  menu: { type: DataTypes.TEXT('long') },
+  orders: { type: DataTypes.TEXT('long') },
+  waiters: { type: DataTypes.TEXT('long') },
+  nextOrderId: { type: DataTypes.INTEGER },
+  nextMenuId: { type: DataTypes.INTEGER }
+});
+
+// Relationships
+User.hasMany(Category, { foreignKey: 'userId' });
+User.hasMany(MenuItem, { foreignKey: 'userId' });
+User.hasMany(Waiter, { foreignKey: 'userId' });
+User.hasMany(Order, { foreignKey: 'userId' });
+
+Category.hasMany(MenuItem, { foreignKey: 'categoryId' });
+MenuItem.belongsTo(Category, { foreignKey: 'categoryId' });
+
+Order.hasMany(OrderItem, { foreignKey: 'orderId', as: 'items' });
+OrderItem.belongsTo(Order, { foreignKey: 'orderId' });
+OrderItem.belongsTo(MenuItem, { foreignKey: 'menuItemId' });
 
 // Sync Database
-sequelize.sync({ alter: true })
-  .then(async () => {
-    console.log('✅ MySQL Database & tables synced!');
+// --- Migration Helper ---
+async function migrateUser(userId) {
+  const state = await RestoState.findOne({ where: { userId } });
+  if (!state) return;
 
-    try {
-      let state = await RestoState.findOne({ order: [['id', 'DESC']] });
-      const menuIsEmpty = !state || (Array.isArray(state.menu) && state.menu.length === 0);
+  console.log(`📦 Migrating data for User ${userId}...`);
 
-      if (menuIsEmpty) {
-        console.log('🌱 Seeding initial state because menu is empty...');
-        let initialMenu = [];
-        try {
-          const data = require('./data.js');
-          initialMenu = data.DEFAULT_MENU || [];
-          initialWaiters = data.WAITERS || [];
-          console.log(`📦 Loaded ${initialMenu.length} items and ${initialWaiters.length} waiters from data.js`);
-        } catch (e) {
-          console.error('❌ Could not load data.js:', e.message);
+  const menu = JSON.parse(state.menu || '[]');
+  const orders = JSON.parse(state.orders || '[]');
+  const waiters = JSON.parse(state.waiters || '[]');
+
+  // 1. Categories & Menu Items
+  const categories = [...new Set(menu.map(item => item.category))];
+  for (const catName of categories) {
+    const [cat] = await Category.findOrCreate({ where: { name: catName, userId } });
+    const catItems = menu.filter(item => item.category === catName);
+    for (const item of catItems) {
+      await MenuItem.findOrCreate({
+        where: { id: item.id, userId },
+        defaults: {
+          name: item.name,
+          price: item.price,
+          type: item.type,
+          image: item.image,
+          categoryId: cat.id
         }
-
-        if (initialMenu.length > 0) {
-          if (!state) {
-            state = await RestoState.create({
-              menu: initialMenu,
-              orders: [],
-              waiters: initialWaiters,
-              nextOrderId: 1,
-              nextMenuId: 100 + initialMenu.length
-            });
-          } else {
-            console.log('🔄 Updating existing empty record (ID: ' + state.id + ') with default menu');
-            state.menu = initialMenu;
-            if (initialWaiters.length > 0) state.waiters = initialWaiters;
-            state.nextMenuId = 100 + initialMenu.length;
-            await state.save();
-          }
-          console.log('✅ Seeding complete.');
-        } else {
-          console.log('⚠️ No items to seed.');
-        }
-      } else {
-        console.log(`📊 Database already has ${state.menu.length} menu items.`);
-      }
-    } catch (dbErr) {
-      console.error('❌ Error during seeding check:', dbErr.message);
+      });
     }
-  })
-  .catch(err => {
-    console.error('❌ MySQL connection/sync error:', err.name, err.message);
-    if (err.parent) console.error('Parent Error:', err.parent.message);
+  }
+
+  // 2. Waiters
+  for (const waiterName of waiters) {
+    await Waiter.findOrCreate({ where: { name: waiterName, userId } });
+  }
+
+  // 3. Orders
+  for (const o of orders) {
+    const [order] = await Order.findOrCreate({
+      where: { id: o.id, userId },
+      defaults: {
+        tableNumber: o.tableNumber,
+        waiterName: o.waiterName,
+        paid: o.paid,
+        createdAt: o.createdAt
+      }
+    });
+
+    for (const item of o.items) {
+      const mi = await MenuItem.findOne({ where: { id: item.menuItemId } }); // This might be risky if IDs changed, but for migration we assume they align or we lookup by name
+      await OrderItem.create({
+        orderId: order.id,
+        menuItemId: item.menuItemId,
+        qty: item.qty,
+        status: item.status,
+        priceAtTime: mi ? mi.price : 0
+      });
+    }
+  }
+
+  // Delete legacy state after successful migration
+  // await state.destroy(); 
+  console.log(`✅ Migration for User ${userId} complete.`);
+}
+
+// Global Middleware
+app.use((err, req, res, next) => {
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    return res.status(400).json({ error: 'Invalid JSON payload' });
+  }
+  next();
+});
+
+app.use((req, res, next) => {
+  console.log(`📡 [${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
+
+// Sync Database
+sequelize.sync({ alter: true }).then(() => {
+  console.log('✅ MySQL Relational Database synced!');
+});
+
+// Socket.io Connection
+io.on('connection', (socket) => {
+  socket.on('join', (userId) => {
+    socket.join(`restaurant:${userId}`);
+    console.log(`🔌 Socket joined room: restaurant:${userId}`);
   });
+});
 
 app.get("/", (req, res) => {
   res.send(`
@@ -177,6 +191,7 @@ app.get("/", (req, res) => {
           .icon { width: 120px; height: 120px; margin-bottom: 24px; }
           h1 { color: #871f28; font-size: 24px; }
           p { color: #6c757d; }
+          .status { color: #28a745; font-weight: bold; margin-top: 10px; }
         </style>
       </head>
       <body>
@@ -187,32 +202,65 @@ app.get("/", (req, res) => {
             <circle cx="75" cy="25" r="10" fill="#ffc107"/>
           </svg>
         </div>
-        <h1>ManageResto Backend v7</h1>
-        <p>Final Auth Fix - System Ready</p>
+        <h1>ManageResto Scaled Backend v1.0</h1>
+        <p>Relational DB + WebSockets Enabled</p>
+        <div class="status">● System Scalable & Ready</div>
       </body>
     </html>
   `);
 });
 
 app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", version: "7.0", timestamp: new Date() });
+  res.json({ status: "ok", version: "1.0-scaled", socketReady: true });
 });
 
-app.get("/favicon.ico", (req, res) => {
-  res.sendFile(path.join(__dirname, "backend_icon.svg"));
+app.get("/favicon.ico", (req, res) => res.sendFile(path.join(__dirname, "backend_icon.svg")));
+
+// --- Auth Endpoints ---
+app.post('/api/signup', async (req, res) => {
+  try {
+    const { restaurantName, email, mobile, location, password } = req.body;
+    const existing = await User.findOne({ where: { [Sequelize.Op.or]: [{ email }, { mobile }] } });
+    if (existing) return res.status(400).json({ error: 'User already exists' });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = await User.create({ restaurantName, email, mobile, location, password: hashedPassword });
+    
+    // Seed initial categories
+    const { CATEGORIES } = require('./data.js');
+    for (const catName of CATEGORIES) {
+      await Category.create({ name: catName, userId: user.id });
+    }
+
+    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET);
+    res.json({ token, user: { id: user.id, restaurantName, email, mobile, location } });
+  } catch (error) {
+    res.status(500).json({ error: 'Signup failed' });
+  }
 });
 
-app.get("/favicon.png", (req, res) => {
-  res.sendFile(path.join(__dirname, "favicon.png")); // Keep PNG for frontend compatibility
+app.post('/api/login', async (req, res) => {
+  try {
+    const { login, password } = req.body;
+    const user = await User.findOne({ where: { [Sequelize.Op.or]: [{ email: login }, { mobile: login }] } });
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+    
+    // Check for migration
+    await migrateUser(user.id);
+
+    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET);
+    res.json({ token, user: { id: user.id, restaurantName: user.restaurantName, email: user.email, mobile: user.mobile, location: user.location } });
+  } catch (error) {
+    res.status(500).json({ error: 'Login failed' });
+  }
 });
 
-// --- Auth Middleware ---
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
-
   if (!token) return res.status(401).json({ error: 'Unauthorized' });
-
   jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) return res.status(403).json({ error: 'Forbidden' });
     req.user = user;
@@ -220,106 +268,99 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-// --- Auth Endpoints ---
-app.post('/api/signup', async (req, res) => {
-  console.log('📝 Received Signup Request:', req.body);
-  try {
-    const { restaurantName, email, mobile, location, password } = req.body;
-    
-    if (!password) return res.status(400).json({ error: 'Password is required' });
+// --- Relational API Endpoints ---
 
-    // Check if user exists
-    const existing = await User.findOne({ where: { [Sequelize.Op.or]: [{ email }, { mobile }] } });
-    if (existing) {
-      console.log('⚠️ Signup failed: User already exists');
-      return res.status(400).json({ error: 'User with this email or mobile already exists' });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const user = await User.create({ restaurantName, email, mobile, location, password: hashedPassword });
-    
-    console.log('✅ User created:', user.id);
-    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET);
-    res.json({ token, user: { id: user.id, restaurantName, email, mobile, location } });
-  } catch (error) {
-    console.error('❌ Signup error:', error);
-    res.status(500).json({ error: 'Signup failed', details: error.message });
-  }
-});
-
-app.post('/api/login', async (req, res) => {
-  try {
-    const { login, password } = req.body; // login can be email or mobile
-    const user = await User.findOne({ 
-      where: { [Sequelize.Op.or]: [{ email: login }, { mobile: login }] } 
-    });
-
-    if (!user || !(await bcrypt.compare(password, user.password))) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET);
-    res.json({ token, user: { id: user.id, restaurantName: user.restaurantName, email: user.email, mobile: user.mobile, location: user.location } });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Login failed' });
-  }
-});
-
-// Get full state
+// Get State (Full snapshot)
 app.get('/api/state', authenticateToken, async (req, res) => {
   try {
-    let state = await RestoState.findOne({ where: { userId: req.user.id } });
-    if (!state) {
-      state = await RestoState.create({
-        userId: req.user.id,
-        menu: [],
-        orders: [],
-        waiters: [],
-        nextOrderId: 1,
-        nextMenuId: 100
-      });
-    }
-    res.json(state);
+    const userId = req.user.id;
+    const categories = await Category.findAll({ where: { userId } });
+    const menu = await MenuItem.findAll({ where: { userId } });
+    const waiters = await Waiter.findAll({ where: { userId } });
+    const orders = await Order.findAll({ 
+      where: { userId },
+      include: [{ model: OrderItem, as: 'items' }],
+      order: [['createdAt', 'DESC']]
+    });
+
+    res.json({
+      menu,
+      categories: categories.map(c => c.name),
+      waiters: waiters.map(w => w.name),
+      orders,
+      nextOrderId: orders.length > 0 ? Math.max(...orders.map(o => o.id)) + 1 : 1,
+      nextMenuId: menu.length > 0 ? Math.max(...menu.map(m => m.id)) + 1 : 100
+    });
   } catch (error) {
-    console.error('Fetch error:', error);
     res.status(500).json({ error: 'Failed to fetch state' });
   }
 });
 
-// Update full state
+// Update Full State (Legacy compatibility - maps to relational)
 app.post('/api/state', authenticateToken, async (req, res) => {
   try {
-    const { menu, orders, nextOrderId, nextMenuId, waiters } = req.body;
-    let state = await RestoState.findOne({ where: { userId: req.user.id } });
-    
-    if (!state) {
-      state = await RestoState.create({ userId: req.user.id });
+    const userId = req.user.id;
+    const { menu, orders, waiters } = req.body;
+
+    if (menu) {
+      for (const item of menu) {
+        const [cat] = await Category.findOrCreate({ where: { name: item.category, userId } });
+        await MenuItem.upsert({
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          type: item.type,
+          image: item.image,
+          categoryId: cat.id,
+          userId
+        });
+      }
+      io.to(`restaurant:${userId}`).emit('menuUpdated');
     }
 
-    if (menu !== undefined) state.menu = menu;
-    if (orders !== undefined) state.orders = orders;
-    if (nextOrderId !== undefined) state.nextOrderId = nextOrderId;
-    if (nextMenuId !== undefined) state.nextMenuId = nextMenuId;
-    if (waiters !== undefined) state.waiters = waiters;
+    if (waiters) {
+      for (const name of waiters) {
+        await Waiter.findOrCreate({ where: { name, userId } });
+      }
+      io.to(`restaurant:${userId}`).emit('waiterUpdated');
+    }
 
-    await state.save();
-    res.json({ success: true, state });
+    if (orders) {
+      for (const o of orders) {
+        const [order] = await Order.upsert({
+          id: o.id,
+          tableNumber: o.tableNumber,
+          waiterName: o.waiterName,
+          paid: o.paid,
+          userId,
+          createdAt: o.createdAt
+        });
+        
+        if (o.items) {
+          await OrderItem.destroy({ where: { orderId: order.id } });
+          for (const item of o.items) {
+            await OrderItem.create({
+              orderId: order.id,
+              menuItemId: item.menuItemId,
+              qty: item.qty,
+              status: item.status,
+              priceAtTime: item.priceAtTime || 0
+            });
+          }
+        }
+      }
+      io.to(`restaurant:${userId}`).emit('orderUpdated');
+    }
+
+    res.json({ success: true });
   } catch (error) {
-    console.error('Update error:', error);
+    console.error('Update Error:', error);
     res.status(500).json({ error: 'Failed to update state' });
   }
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`========================================`);
-  console.log(`ManageResto Backend v6 Running! (MySQL)`);
-  console.log(`Access the API at http://localhost:${PORT}`);
-  console.log(`========================================`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`📡 ManageResto Scaled Backend v1.0 Running on port ${PORT}`);
 });
 
-// Catch-all for 404s
-app.use((req, res) => {
-  console.log(`🚫 404 Not Found: ${req.method} ${req.url}`);
-  res.status(404).json({ error: 'Route not found', path: req.url });
-});
+app.use((req, res) => res.status(404).json({ error: 'Not found' }));

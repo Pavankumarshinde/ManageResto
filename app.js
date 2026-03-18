@@ -11,18 +11,52 @@ let saveQueue = [];
 let isProcessingQueue = false;
 let user = JSON.parse(localStorage.getItem('user')) || null;
 let token = localStorage.getItem('token') || null;
+let socket = null;
 
 const authHeaders = () => ({
   'Content-Type': 'application/json',
   ...(token ? { 'Authorization': `Bearer ${token}` } : {})
 });
 
-async function fetchState() {
+function initSocket() {
+  if (socket) return;
+  if (!user) return;
+
+  socket = io(API_BASE);
+  
+  socket.on('connect', () => {
+    console.log('🔌 Connected to WebSocket');
+    socket.emit('join', user.id);
+  });
+
+  socket.on('orderUpdated', () => {
+    console.log('🔔 Orders updated via socket');
+    fetchState(true); // Forced fetch
+  });
+
+  socket.on('menuUpdated', () => {
+    console.log('🔔 Menu updated via socket');
+    fetchState(true);
+  });
+
+  socket.on('waiterUpdated', () => {
+    console.log('🔔 Waiters updated via socket');
+    fetchState(true);
+  });
+
+  socket.on('disconnect', () => {
+    console.log('❌ Socket disconnected');
+  });
+}
+
+async function fetchState(forced = false) {
   // 🟢 Auth Guard: Only poll if we have a token!
   if (!token) return;
 
-  // Block polling if a save is in flight OR we recently saved (5s window)
-  if (isSyncing || isProcessingQueue || (Date.now() - lastSaveTime < 5000)) return;
+  // If not forced, block if syncing or recently saved
+  if (!forced) {
+    if (isSyncing || isProcessingQueue || (Date.now() - lastSaveTime < 5000)) return;
+  }
 
   // Abort any previous fetch if still running
   if (fetchController) fetchController.abort();
@@ -42,13 +76,14 @@ async function fetchState() {
     const data = await res.json();
 
     // Final guard if we started a save while the fetch was returning
-    if (isSyncing || isProcessingQueue || (Date.now() - lastSaveTime < 5000)) return;
+    if (!forced && (isSyncing || isProcessingQueue || (Date.now() - lastSaveTime < 5000))) return;
 
     // 🔴 Update local state
-    state.menu = (data.menu && data.menu.length > 0) ? data.menu : (DEFAULT_MENU ? DEFAULT_MENU.map(i => ({ ...i })) : []);
+    state.menu = data.menu || [];
     state.orders = data.orders || [];
     state.nextOrderId = data.nextOrderId || 1;
     state.nextMenuId = data.nextMenuId || 100;
+    state.waiters = data.waiters || [];
 
     // 🔴 Re-render UI
     if (currentPage === 'orders') renderOrders();
@@ -57,14 +92,11 @@ async function fetchState() {
 
   } catch (err) {
     if (err.name === 'AbortError') return;
-    console.error("Polling failed", err);
+    console.error("Fetch failed", err);
   } finally {
     fetchController = null;
   }
 }
-
-// Then poll every 1 seconds (cleaner for free tier)
-setInterval(fetchState, 1000);
 let state = {
   menu: [],
   orders: [],
@@ -158,6 +190,7 @@ async function loadState() {
     state.nextMenuId = data.nextMenuId || 100;
     state.waiters = data.waiters && data.waiters.length > 0 ? data.waiters : (typeof WAITERS !== 'undefined' ? [...WAITERS] : []);
 
+    initSocket(); // Initialize real-time updates
     showAuthUI(false);
     updateProfileUI();
 
@@ -251,6 +284,10 @@ window.handleLogin = async function () {
 }
 
 window.handleLogout = function () {
+  if (socket) {
+    socket.disconnect();
+    socket = null;
+  }
   localStorage.removeItem('token');
   localStorage.removeItem('user');
   token = null;
