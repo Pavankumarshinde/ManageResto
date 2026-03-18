@@ -41,12 +41,20 @@ function initSocket() {
   if (socket || !user) return;
 
   socket = io(API_BASE, {
-    auth: { token }   // send JWT to backend
+    auth: { token },
+    transports: ['websocket', 'polling'],  // try WebSocket first, fall back to polling
+    reconnectionAttempts: 5,     // stop retrying after 5 failures (not infinite)
+    reconnectionDelay: 3000,     // wait 3s between attempts
+    timeout: 10000               // 10s connection timeout
   });
 
   socket.on('connect', () => {
     console.log('🔌 Connected to WebSocket');
     socket.emit('join', user.id);
+  });
+
+  socket.on('connect_error', (err) => {
+    console.warn('⚠️ Socket connection failed (app still works):', err.message);
   });
 
   // 🔥 Instead of refetch → directly update state

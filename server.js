@@ -12,33 +12,30 @@ const http = require('http');
 const { Server } = require('socket.io');
 
 const app = express();
-const server = http.createServer(app);
 
-const ALLOWED_ORIGINS = [
-  'http://localhost:3000',
-  'http://127.0.0.1:3000',
-  'http://localhost:5500',
-  'http://127.0.0.1:5500',
-  'https://manageresto.onrender.com',
-  // Allow file:// for direct HTML open (Render / Vercel hosted frontends)
-];
+// ✅ Create server WITHOUT passing app — so Socket.IO is the FIRST request listener.
+// Express is added AFTER via server.on('request', app) to avoid intercepting /socket.io/ paths.
+const server = http.createServer();
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, Postman, same-origin)
-    if (!origin || ALLOWED_ORIGINS.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      // In production allow any origin since frontend can be hosted anywhere
-      callback(null, true);
-    }
+    // Allow all origins — frontend can be hosted on Vercel, GitHub Pages, etc.
+    callback(null, true);
   },
   credentials: true
 };
 
+// Socket.IO MUST be attached before Express so it handles /socket.io/ paths first
 const io = new Server(server, {
-  cors: { origin: "*", methods: ["GET", "POST"] }
+  cors: { origin: "*", methods: ["GET", "POST", "PUT", "DELETE"] },
+  transports: ['polling', 'websocket'],
+  allowUpgrades: true,
+  pingTimeout: 60000,
+  pingInterval: 25000
 });
+
+// Add Express AFTER Socket.IO — it will handle all non-socket.io requests
+server.on('request', app);
 
 const PORT = process.env.PORT || 3000;
 
