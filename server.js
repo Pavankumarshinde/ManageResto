@@ -71,12 +71,15 @@ const Category = sequelize.define('Category', {
 });
 
 const MenuItem = sequelize.define('MenuItem', {
+  frontendId: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
   name: { type: DataTypes.STRING, allowNull: false },
   price: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
   type: { type: DataTypes.ENUM('Veg', 'Non-Veg'), defaultValue: 'Veg' },
   image: { type: DataTypes.STRING },
   categoryId: { type: DataTypes.INTEGER },
   userId: { type: DataTypes.INTEGER, allowNull: false }
+}, {
+  indexes: [ { unique: true, fields: ['userId', 'frontendId'] } ]
 });
 
 const Waiter = sequelize.define('Waiter', {
@@ -85,11 +88,14 @@ const Waiter = sequelize.define('Waiter', {
 });
 
 const Order = sequelize.define('Order', {
+  frontendId: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
   tableNumber: { type: DataTypes.STRING, allowNull: false },
   waiterName: { type: DataTypes.STRING }, // Storing name for history
   paid: { type: DataTypes.BOOLEAN, defaultValue: false },
   totalAmount: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 },
   userId: { type: DataTypes.INTEGER, allowNull: false }
+}, {
+  indexes: [ { unique: true, fields: ['userId', 'frontendId'] } ]
 });
 
 const OrderItem = sequelize.define('OrderItem', {
@@ -115,9 +121,7 @@ sequelize.authenticate()
   .catch(err => console.error('❌ DB connection error:', err.message));
 
 // Sync Database (table creation/migration) — errors here are logged but don't kill the server
-sequelize.sync({ alter: true })
-  .then(() => console.log('✅ MySQL Relational Database synced!'))
-  .catch(err => console.error('❌ DB sync error (check env vars in Render dashboard):', err.message));
+// Removed duplicate sync
 
 // Prevent unhandled DB errors from killing the process
 process.on('unhandledRejection', (reason) => {
@@ -156,7 +160,7 @@ async function migrateUser(userId) {
     const catItems = menu.filter(item => item.category === catName);
     for (const item of catItems) {
       await MenuItem.findOrCreate({
-        where: { id: item.id, userId },
+        where: { frontendId: item.id, userId },
         defaults: {
           name: item.name,
           price: item.price,
@@ -176,7 +180,7 @@ async function migrateUser(userId) {
   // 3. Orders
   for (const o of orders) {
     const [order] = await Order.findOrCreate({
-      where: { id: o.id, userId },
+      where: { frontendId: o.id, userId },
       defaults: {
         tableNumber: o.tableNumber,
         waiterName: o.waiterName,
@@ -186,13 +190,14 @@ async function migrateUser(userId) {
     });
 
     for (const item of o.items) {
-      const mi = await MenuItem.findOne({ where: { id: item.menuItemId } }); // This might be risky if IDs changed, but for migration we assume they align or we lookup by name
+      const mi = await MenuItem.findOne({ where: { frontendId: item.menuItemId, userId } });
+      if (!mi) continue;
       await OrderItem.create({
         orderId: order.id,
-        menuItemId: item.menuItemId,
+        menuItemId: mi.id,
         qty: item.qty,
         status: item.status,
-        priceAtTime: mi ? mi.price : 0
+        priceAtTime: mi.price
       });
     }
   }
@@ -310,6 +315,42 @@ const authenticateToken = (req, res, next) => {
 };
 
 // --- Relational API Endpoints ---
+const mapStateOutput = (categories, menu, waiters, orders) => {
+  const formattedMenu = menu.map(m => {
+    const cat = categories.find(c => c.id === m.categoryId);
+    return {
+      id: m.frontendId,
+      name: m.name,
+      price: m.price,
+      type: m.type,
+      image: m.image,
+      category: cat ? cat.name : 'Uncategorized'
+    };
+  });
+
+  const formattedOrders = orders.map(o => ({
+    id: o.frontendId,
+    tableNumber: o.tableNumber,
+    waiterName: o.waiterName,
+    paid: o.paid,
+    createdAt: o.createdAt,
+    items: o.items.map(i => ({
+      menuItemId: i.MenuItem ? i.MenuItem.frontendId : i.menuItemId,
+      qty: i.qty,
+      status: i.status,
+      priceAtTime: i.priceAtTime
+    }))
+  }));
+
+  return {
+    menu: formattedMenu,
+    categories: categories.map(c => c.name),
+    waiters: waiters.map(w => w.name),
+    orders: formattedOrders,
+    nextOrderId: formattedOrders.length > 0 ? Math.max(...formattedOrders.map(o => o.id)) + 1 : 1,
+    nextMenuId: formattedMenu.length > 0 ? Math.max(...formattedMenu.map(m => m.id)) + 1 : 100
+  };
+};
 
 // Get State (Full snapshot)
 app.get('/api/state', authenticateToken, async (req, res) => {
@@ -320,18 +361,11 @@ app.get('/api/state', authenticateToken, async (req, res) => {
     const waiters = await Waiter.findAll({ where: { userId } });
     const orders = await Order.findAll({
       where: { userId },
-      include: [{ model: OrderItem, as: 'items' }],
+      include: [{ model: OrderItem, as: 'items', include: [MenuItem] }],
       order: [['createdAt', 'DESC']]
     });
 
-    res.json({
-      menu,
-      categories: categories.map(c => c.name),
-      waiters: waiters.map(w => w.name),
-      orders,
-      nextOrderId: orders.length > 0 ? Math.max(...orders.map(o => o.id)) + 1 : 1,
-      nextMenuId: menu.length > 0 ? Math.max(...menu.map(m => m.id)) + 1 : 100
-    });
+    res.json(mapStateOutput(categories, menu, waiters, orders));
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch state' });
   }
@@ -347,15 +381,13 @@ app.post('/api/state', authenticateToken, async (req, res) => {
     if (menu) {
       for (const item of menu) {
         const [cat] = await Category.findOrCreate({ where: { name: item.category, userId } });
-        await MenuItem.upsert({
-          id: item.id,
-          name: item.name,
-          price: item.price,
-          type: item.type,
-          image: item.image,
-          categoryId: cat.id,
-          userId
+        const [menuItem, created] = await MenuItem.findOrCreate({
+            where: { userId, frontendId: item.id },
+            defaults: { name: item.name, price: item.price, type: item.type, image: item.image, categoryId: cat.id }
         });
+        if (!created) {
+            await menuItem.update({ name: item.name, price: item.price, type: item.type, image: item.image, categoryId: cat.id });
+        }
       }
     }
 
@@ -367,25 +399,27 @@ app.post('/api/state', authenticateToken, async (req, res) => {
 
     if (orders) {
       for (const o of orders) {
-        const [order] = await Order.upsert({
-          id: o.id,
-          tableNumber: o.tableNumber,
-          waiterName: o.waiterName,
-          paid: o.paid,
-          userId,
-          createdAt: o.createdAt
+        const [order, created] = await Order.findOrCreate({
+            where: { userId, frontendId: o.id },
+            defaults: { tableNumber: o.tableNumber, waiterName: o.waiterName, paid: o.paid, createdAt: o.createdAt }
         });
+        if (!created) {
+            await order.update({ tableNumber: o.tableNumber, waiterName: o.waiterName, paid: o.paid, createdAt: o.createdAt });
+        }
 
         if (o.items) {
           await OrderItem.destroy({ where: { orderId: order.id } });
           for (const item of o.items) {
-            await OrderItem.create({
-              orderId: order.id,
-              menuItemId: item.menuItemId,
-              qty: item.qty,
-              status: item.status,
-              priceAtTime: item.priceAtTime || 0
-            });
+            const dbMenu = await MenuItem.findOne({ where: { userId, frontendId: item.menuItemId } });
+            if (dbMenu) {
+              await OrderItem.create({
+                orderId: order.id,
+                menuItemId: dbMenu.id,
+                qty: item.qty,
+                status: item.status,
+                priceAtTime: item.priceAtTime || 0
+              });
+            }
           }
         }
       }
@@ -397,18 +431,11 @@ app.post('/api/state', authenticateToken, async (req, res) => {
     const updatedWaiters = await Waiter.findAll({ where: { userId } });
     const updatedOrders = await Order.findAll({
       where: { userId },
-      include: [{ model: OrderItem, as: 'items' }],
+      include: [{ model: OrderItem, as: 'items', include: [MenuItem] }],
       order: [['createdAt', 'DESC']]
     });
 
-    const fullState = {
-      menu: updatedMenu,
-      categories: categories.map(c => c.name),
-      waiters: updatedWaiters.map(w => w.name),
-      orders: updatedOrders,
-      nextOrderId: updatedOrders.length > 0 ? Math.max(...updatedOrders.map(o => o.id)) + 1 : 1,
-      nextMenuId: updatedMenu.length > 0 ? Math.max(...updatedMenu.map(m => m.id)) + 1 : 100
-    };
+    const fullState = mapStateOutput(categories, updatedMenu, updatedWaiters, updatedOrders);
 
     // ✅ 🔥 SINGLE SOURCE OF TRUTH EVENT
     io.to(`restaurant:${userId}`).emit('stateUpdated', fullState);
