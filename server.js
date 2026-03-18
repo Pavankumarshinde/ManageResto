@@ -13,9 +13,7 @@ const { Server } = require('socket.io');
 
 const app = express();
 
-// ✅ Create server WITHOUT passing app — so Socket.IO is the FIRST request listener.
-// Express is added AFTER via server.on('request', app) to avoid intercepting /socket.io/ paths.
-const server = http.createServer();
+const server = http.createServer(app);
 
 const corsOptions = {
   origin: function (origin, callback) {
@@ -34,8 +32,7 @@ const io = new Server(server, {
   pingInterval: 25000
 });
 
-// Add Express AFTER Socket.IO — it will handle all non-socket.io requests
-server.on('request', app);
+// Express handles non-socket.io requests automatically via http.createServer(app)
 
 const PORT = process.env.PORT || 3000;
 
