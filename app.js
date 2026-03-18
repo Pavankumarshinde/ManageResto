@@ -61,6 +61,13 @@ function initSocket() {
 
   // 🔥 Instead of refetch → directly update state
   socket.on('stateUpdated', (data) => {
+    // 🛡️ GUARD: If we are currently saving or just saved, IGNORE server updates
+    // to prevent "flipping" back to old state before the server reflects our latest change.
+    if (isProcessingQueue || (Date.now() - lastSaveTime < 2500)) {
+      console.log('⏳ Ignoring socket update (Sync in progress/recent)');
+      return;
+    }
+
     console.log('🔔 Full state update received');
 
     state.menu = data.menu || [];
@@ -140,10 +147,13 @@ async function fetchState(forced = false) {
     }
 
     const data = await res.json();
-    lastServerSyncTime = data.lastSyncTime || null; // Optional: server could return this
+    lastServerSyncTime = data.lastSyncTime || null;
 
-    // Final guard if we started a save while the fetch was returning
-    if (!forced && (isProcessingQueue || (Date.now() - lastSaveTime < 5000))) return;
+    // Final guard if we started a save or a socket update arrived while the fetch was returning
+    if (!forced && (isProcessingQueue || (Date.now() - lastSaveTime < 2500))) {
+      console.log('⏳ Discarding fetch result (User is active)');
+      return;
+    }
 
     // 🔴 Update local state
     state.menu = data.menu || [];

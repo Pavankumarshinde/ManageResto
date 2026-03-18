@@ -386,6 +386,7 @@ app.get('/api/state', authenticateToken, async (req, res) => {
 });
 
 app.post('/api/state', authenticateToken, async (req, res) => {
+  const transaction = await sequelize.transaction();
   try {
     const userId = req.user.id;
     const { menu, orders, waiters } = req.body;
@@ -395,7 +396,10 @@ app.post('/api/state', authenticateToken, async (req, res) => {
       const categoryMap = {};
       for (const catName of uniqueCats) {
         if (!catName) continue;
-        const [cat] = await Category.findOrCreate({ where: { name: catName, userId } });
+        const [cat] = await Category.findOrCreate({ 
+            where: { name: catName, userId },
+            transaction
+        });
         categoryMap[catName] = cat.id;
       }
 
@@ -410,15 +414,16 @@ app.post('/api/state', authenticateToken, async (req, res) => {
       }));
       
       await MenuItem.bulkCreate(menuData, {
-        updateOnDuplicate: ["name", "price", "type", "image", "categoryId"]
+        updateOnDuplicate: ["name", "price", "type", "image", "categoryId"],
+        transaction
       });
     }
 
     if (waiters && Array.isArray(waiters)) {
-      await Waiter.destroy({ where: { userId } });
+      await Waiter.destroy({ where: { userId }, transaction });
       if (waiters.length > 0) {
         const waiterData = waiters.map(name => ({ name, userId }));
-        await Waiter.bulkCreate(waiterData);
+        await Waiter.bulkCreate(waiterData, { transaction });
       }
     }
 
@@ -433,13 +438,15 @@ app.post('/api/state', authenticateToken, async (req, res) => {
       }));
 
       await Order.bulkCreate(orderData, {
-        updateOnDuplicate: ["tableNumber", "waiterName", "paid", "createdAt"]
+        updateOnDuplicate: ["tableNumber", "waiterName", "paid", "createdAt"],
+        transaction
       });
 
       const orderFrontendIds = orders.map(o => o.id);
       const dbOrders = await Order.findAll({ 
         where: { userId, frontendId: orderFrontendIds }, 
-        attributes: ['id', 'frontendId'] 
+        attributes: ['id', 'frontendId'],
+        transaction 
       });
       
       const orderMap = {};
@@ -450,12 +457,13 @@ app.post('/api/state', authenticateToken, async (req, res) => {
       });
 
       if (orderDbIds.length > 0) {
-        await OrderItem.destroy({ where: { orderId: orderDbIds } });
+        await OrderItem.destroy({ where: { orderId: orderDbIds }, transaction });
       }
 
       const dbMenuItems = await MenuItem.findAll({ 
         where: { userId }, 
-        attributes: ['id', 'frontendId'] 
+        attributes: ['id', 'frontendId'],
+        transaction
       });
       const menuMap = {};
       dbMenuItems.forEach(m => { menuMap[m.frontendId] = m.id; });
@@ -480,11 +488,17 @@ app.post('/api/state', authenticateToken, async (req, res) => {
       }
 
       if (itemsToCreate.length > 0) {
-        await OrderItem.bulkCreate(itemsToCreate);
+        await OrderItem.bulkCreate(itemsToCreate, { transaction });
       }
     }
 
-    // ✅ 🔥 FETCH LATEST STATE (IMPORTANT)
+    // ✅ Update user updatedAt inside transaction
+    await User.update({ updatedAt: new Date() }, { where: { id: userId }, transaction });
+
+    // Commit all changes
+    await transaction.commit();
+
+    // ✅ 🔥 FETCH LATEST STATE AFTER COMMIT
     const categories = await Category.findAll({ where: { userId } });
     const updatedMenu = await MenuItem.findAll({ where: { userId } });
     const updatedWaiters = await Waiter.findAll({ where: { userId } });
@@ -496,15 +510,13 @@ app.post('/api/state', authenticateToken, async (req, res) => {
 
     const fullState = mapStateOutput(categories, updatedMenu, updatedWaiters, updatedOrders);
 
-    // ✅ Update user updatedAt to trigger polling clients
-    await User.update({ updatedAt: new Date() }, { where: { id: userId } });
-
     // ✅ 🔥 SINGLE SOURCE OF TRUTH EVENT
     io.to(`restaurant:${userId}`).emit('stateUpdated', fullState);
 
     res.json({ success: true });
 
   } catch (error) {
+    if (transaction) await transaction.rollback();
     console.error('Update Error:', error);
     res.status(500).json({ error: 'Failed to update state' });
   }
