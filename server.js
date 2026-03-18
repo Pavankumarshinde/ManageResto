@@ -23,6 +23,16 @@ app.use(cors());
 app.use(express.json({ limit: '5mb' })); // Increased limit for larger menus
 
 // --- Models ---
+const sequelize = new Sequelize(
+  process.env.DB_NAME || 'manageresto',
+  process.env.DB_USER || 'root',
+  process.env.DB_PASS || '',
+  {
+    host: process.env.DB_HOST || 'localhost',
+    dialect: 'mysql', // or 'postgres' if you're using that
+    logging: false
+  }
+);
 const User = sequelize.define('User', {
   restaurantName: { type: DataTypes.STRING, allowNull: false },
   email: { type: DataTypes.STRING, unique: true, allowNull: false },
@@ -75,6 +85,10 @@ const RestoState = sequelize.define('RestoState', {
   nextOrderId: { type: DataTypes.INTEGER },
   nextMenuId: { type: DataTypes.INTEGER }
 });
+
+sequelize.authenticate()
+  .then(() => console.log('✅ Database connected'))
+  .catch(err => console.error('❌ DB connection error:', err));
 
 // Relationships
 User.hasMany(Category, { foreignKey: 'userId' });
@@ -225,7 +239,7 @@ app.post('/api/signup', async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await User.create({ restaurantName, email, mobile, location, password: hashedPassword });
-    
+
     // Seed initial categories
     const { CATEGORIES } = require('./data.js');
     for (const catName of CATEGORIES) {
@@ -246,7 +260,7 @@ app.post('/api/login', async (req, res) => {
     if (!user || !(await bcrypt.compare(password, user.password))) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
-    
+
     // Check for migration
     await migrateUser(user.id);
 
@@ -277,7 +291,7 @@ app.get('/api/state', authenticateToken, async (req, res) => {
     const categories = await Category.findAll({ where: { userId } });
     const menu = await MenuItem.findAll({ where: { userId } });
     const waiters = await Waiter.findAll({ where: { userId } });
-    const orders = await Order.findAll({ 
+    const orders = await Order.findAll({
       where: { userId },
       include: [{ model: OrderItem, as: 'items' }],
       order: [['createdAt', 'DESC']]
@@ -302,6 +316,7 @@ app.post('/api/state', authenticateToken, async (req, res) => {
     const userId = req.user.id;
     const { menu, orders, waiters } = req.body;
 
+    // --- UPDATE DB (same as your code) ---
     if (menu) {
       for (const item of menu) {
         const [cat] = await Category.findOrCreate({ where: { name: item.category, userId } });
@@ -315,14 +330,12 @@ app.post('/api/state', authenticateToken, async (req, res) => {
           userId
         });
       }
-      io.to(`restaurant:${userId}`).emit('menuUpdated');
     }
 
     if (waiters) {
       for (const name of waiters) {
         await Waiter.findOrCreate({ where: { name, userId } });
       }
-      io.to(`restaurant:${userId}`).emit('waiterUpdated');
     }
 
     if (orders) {
@@ -335,7 +348,7 @@ app.post('/api/state', authenticateToken, async (req, res) => {
           userId,
           createdAt: o.createdAt
         });
-        
+
         if (o.items) {
           await OrderItem.destroy({ where: { orderId: order.id } });
           for (const item of o.items) {
@@ -349,10 +362,32 @@ app.post('/api/state', authenticateToken, async (req, res) => {
           }
         }
       }
-      io.to(`restaurant:${userId}`).emit('orderUpdated');
     }
 
+    // ✅ 🔥 FETCH LATEST STATE (IMPORTANT)
+    const categories = await Category.findAll({ where: { userId } });
+    const updatedMenu = await MenuItem.findAll({ where: { userId } });
+    const updatedWaiters = await Waiter.findAll({ where: { userId } });
+    const updatedOrders = await Order.findAll({
+      where: { userId },
+      include: [{ model: OrderItem, as: 'items' }],
+      order: [['createdAt', 'DESC']]
+    });
+
+    const fullState = {
+      menu: updatedMenu,
+      categories: categories.map(c => c.name),
+      waiters: updatedWaiters.map(w => w.name),
+      orders: updatedOrders,
+      nextOrderId: updatedOrders.length > 0 ? Math.max(...updatedOrders.map(o => o.id)) + 1 : 1,
+      nextMenuId: updatedMenu.length > 0 ? Math.max(...updatedMenu.map(m => m.id)) + 1 : 100
+    };
+
+    // ✅ 🔥 SINGLE SOURCE OF TRUTH EVENT
+    io.to(`restaurant:${userId}`).emit('stateUpdated', fullState);
+
     res.json({ success: true });
+
   } catch (error) {
     console.error('Update Error:', error);
     res.status(500).json({ error: 'Failed to update state' });
