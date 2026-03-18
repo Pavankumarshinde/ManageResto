@@ -108,9 +108,9 @@ async function fetchState(forced = false) {
   // 🟢 Auth Guard: Only poll if we have a token!
   if (!token) return;
 
-  // If not forced, block if syncing or recently saved
+  // If not forced, block if syncing
   if (!forced) {
-    if (isSyncing || isProcessingQueue || (Date.now() - lastSaveTime < 5000)) return;
+    if (isSyncing || isProcessingQueue) return;
   }
 
   // Abort any previous fetch if still running
@@ -132,12 +132,8 @@ async function fetchState(forced = false) {
     const data = await res.json();
     lastServerSyncTime = data.lastUpdated;
 
-    // 🛡️ GUARD: If we are currently saving or just saved (within 5s), IGNORE server updates
-    // This allows the server enough time to process and return the NEW state in the NEXT poll.
-    if (!forced && (isProcessingQueue || (Date.now() - lastSaveTime < 5000))) {
-      console.log('⏳ Discarding fetch result (User recently modified state)');
-      return;
-    }
+    // Discard if user started another action while fetch was returning
+    if (!forced && (isProcessingQueue)) return;
 
     // 🔴 Update local state
     state.menu = data.menu || [];
@@ -199,8 +195,8 @@ async function processSaveQueue() {
 
     if (!res.ok) throw new Error('Save failed');
 
-    // Successful save: Update lastSaveTime to block polls for 5s
-    lastSaveTime = Date.now();
+    // After a successful save, update our local sense of sync and immediately check status
+    await checkStatus(); 
   } catch (err) {
     if (err.name !== 'AbortError') {
       console.error('Failed to save state to server', err);
@@ -252,9 +248,9 @@ async function loadState() {
 
     initSocket(); // Initialize real-time updates
     
-    // Enable background 3-sec polling (lightweight status check)
+    // Enable background 1-sec polling (lightweight status check)
     if (pollInterval) clearInterval(pollInterval);
-    pollInterval = setInterval(checkStatus, 3000);
+    pollInterval = setInterval(checkStatus, 1000);
     
     showAuthUI(false);
     updateProfileUI();
