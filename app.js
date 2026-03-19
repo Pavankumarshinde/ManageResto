@@ -306,6 +306,23 @@ async function loadState() {
   }
 }
 
+// --- LOADING HELPERS ---
+window.showLoading = function(text = 'App Loading...') {
+  const overlay = document.getElementById('loading-overlay');
+  const textEl = document.getElementById('loading-text');
+  if (overlay && textEl) {
+    textEl.textContent = text;
+    overlay.style.display = 'flex';
+  }
+}
+
+window.hideLoading = function() {
+  const overlay = document.getElementById('loading-overlay');
+  if (overlay) {
+    overlay.style.display = 'none';
+  }
+}
+
 // --- AUTH UI HELPERS ---
 function showAuthUI(show) {
   document.getElementById('landing-page').style.display = show ? 'flex' : 'none';
@@ -338,6 +355,7 @@ window.handleSignup = async function () {
   if (password.length < 8) { showToast('Password too short (min 8)'); return; }
 
   try {
+    showLoading('Creating your account...');
     const signupUrl = `${API_BASE}/api/signup`;
     console.log('Sending signup to:', signupUrl);
 
@@ -355,10 +373,12 @@ window.handleSignup = async function () {
     user = data.user;
 
     showToast(`Welcome, ${restaurantName}!`);
-    loadState();
+    await loadState();
   } catch (err) {
     console.error('Signup Fetch Error:', err);
     showToast(err.message);
+  } finally {
+    hideLoading();
   }
 }
 
@@ -369,6 +389,7 @@ window.handleLogin = async function () {
   if (!login || !password) { showToast('Enter credentials'); return; }
 
   try {
+    showLoading('Logging in...');
     const res = await fetch(`${API_BASE}/api/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -383,9 +404,12 @@ window.handleLogin = async function () {
     user = data.user;
 
     showToast('Login successful ✓');
-    loadState();
+    showLoading('Syncing data & Migrating...');
+    await loadState();
   } catch (err) {
     showToast(err.message);
+  } finally {
+    hideLoading();
   }
 }
 
