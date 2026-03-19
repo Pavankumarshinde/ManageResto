@@ -160,22 +160,28 @@ OrderItem.belongsTo(MenuItem, { foreignKey: 'menuItemId' });
 // --- Migration Helper ---
 async function migrateUser(userId) {
   try {
+    console.log(`🔍 Checking migration for User ${userId}...`);
     const state = await RestoState.findOne({ where: { userId } });
-    if (!state) return;
+    if (!state) {
+      console.log(`ℹ️ No RestoState found for User ${userId}. Skipping migration.`);
+      return;
+    }
 
     console.log(`📦 Migrating data for User ${userId}...`);
 
-    // Redundant JSON.parse removed as getters already handle it
     const menu = state.menu || [];
     const orders = state.orders || [];
     const waiters = state.waiters || [];
+    console.log(`📊 Data to migrate: ${menu.length} items, ${orders.length} orders, ${waiters.length} waiters`);
 
     // 1. Categories & Menu Items
     const categories = [...new Set(menu.map(item => item.category))];
+    console.log(`📂 Found ${categories.length} categories.`);
     for (const catName of categories) {
       if (!catName) continue;
       const [cat] = await Category.findOrCreate({ where: { name: catName, userId } });
       const catItems = menu.filter(item => item.category === catName);
+      console.log(`  ➕ Migrating ${catItems.length} items for category "${catName}"`);
       for (const item of catItems) {
         await MenuItem.findOrCreate({
           where: { frontendId: item.id, userId },
@@ -191,6 +197,7 @@ async function migrateUser(userId) {
     }
 
     // 2. Waiters
+    console.log(`🔌 Migrating ${waiters.length} waiters...`);
     for (const waiterName of waiters) {
       if (waiterName) {
         await Waiter.findOrCreate({ where: { name: waiterName, userId } });
@@ -198,6 +205,7 @@ async function migrateUser(userId) {
     }
 
     // 3. Orders
+    console.log(`📝 Migrating ${orders.length} orders...`);
     for (const o of orders) {
       const [order, created] = await Order.findOrCreate({
         where: { frontendId: o.id, userId },
@@ -209,8 +217,8 @@ async function migrateUser(userId) {
         }
       });
 
-      // Only migrate items if the order was newly created to avoid duplicates
       if (created && o.items && Array.isArray(o.items)) {
+        console.log(`  🛒 Migrating ${o.items.length} items for Order #${o.id}`);
         for (const item of o.items) {
           const mi = await MenuItem.findOne({ where: { frontendId: item.menuItemId, userId } });
           if (!mi) continue;
@@ -227,9 +235,7 @@ async function migrateUser(userId) {
 
     console.log(`✅ Migration for User ${userId} complete.`);
   } catch (error) {
-    console.error(`❌ Migration failed for User ${userId}:`, error);
-    // We don't throw here to allow login to proceed even if migration fails partially,
-    // though the user might see empty data if RestoState is gone (but we don't delete it yet).
+    console.error(`❌ Migration failed for User ${userId}:`, error.message, error.stack);
   }
 }
 
