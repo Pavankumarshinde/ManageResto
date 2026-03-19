@@ -241,14 +241,6 @@
             </div>
           </div>
 
-          <!-- Hourly Histogram -->
-          <div class="card" id="histogram-card" style="margin-top:20px;">
-            <div class="analytics-metric-title">📊 Hourly Order Distribution</div>
-            <div id="hourly-histogram" class="histogram-container">
-              <!-- Bars rendered by JS -->
-            </div>
-          </div>
-
           <!-- Metrics Row 1 -->
           <div class="metric-row" style="margin-top:20px;">
             <div class="card analytics-metric">
@@ -261,41 +253,29 @@
             </div>
           </div>
 
-          <!-- Metrics Row 2 -->
-          <div class="metric-row" style="margin-top:12px;">
-            <div class="card analytics-metric">
-              <div class="analytics-metric-title">📈 Avg Order Value</div>
-              <div class="analytics-metric-value" id="metric-aov">₹0.00</div>
-            </div>
-            <div class="card analytics-metric">
-              <div class="analytics-metric-title">📅 Month's Total</div>
-              <div class="analytics-metric-value" id="metric-month-revenue">₹0.00</div>
+          <!-- Hourly Histogram (Moved after Revenue) -->
+          <div class="card" id="histogram-card" style="margin-top:20px;">
+            <div class="analytics-metric-title">📊 Hourly Order Distribution</div>
+            <div id="hourly-histogram" class="histogram-container">
+              <!-- Bars rendered by JS -->
             </div>
           </div>
 
-          <!-- Metrics Row 3 -->
-          <div class="metric-row" style="margin-top:12px;">
-            <div class="card analytics-metric" style="flex:1;">
-              <div class="analytics-metric-title">🌍 All-Time Revenue</div>
-              <div class="analytics-metric-value" id="metric-total-revenue">₹0.00</div>
-            </div>
-          </div>
-
-          <!-- Most Ordered -->
+          <!-- Most Ordered (Top 3) -->
           <div class="card most-ordered-card" style="margin-top:20px;">
-            <div class="analytics-metric-title">🍽️ Most Ordered Item</div>
-            <h4 id="mo-name">--</h4>
-            <p id="mo-count">0 ordered</p>
-            <div class="progress-bar">
-              <div class="progress-bar-fill" id="mo-progress" style="width:0%"></div>
+            <div class="analytics-metric-title">🍽️ Top 3 Ordered Items</div>
+            <div id="top-ordered-list" style="margin-top:12px; display:flex; flex-direction:column; gap:12px;">
+              <!-- Top 3 items rendered here -->
             </div>
           </div>
 
-          <!-- Waiter Performance -->
+          <!-- Waiter Performance (In a box with scrollbar) -->
           <div class="card" style="margin-top:24px;">
             <div class="analytics-metric-title" id="label-waiter-perf">👤 Waiter Performance</div>
-            <div id="waiter-performance-list" style="margin-top:16px; display:flex; flex-direction:column; gap:12px;">
-              <!-- Waiter stats rendered here -->
+            <div id="waiter-performance-box" style="margin-top:16px; max-height: 250px; overflow-y: auto; padding-right: 4px;">
+              <div id="waiter-performance-list" style="display:flex; flex-direction:column; gap:12px;">
+                <!-- Waiter stats rendered here -->
+              </div>
             </div>
           </div>
 

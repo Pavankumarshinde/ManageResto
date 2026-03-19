@@ -1210,17 +1210,22 @@ function renderHourlyHistogram(orders) {
   const container = document.getElementById('hourly-histogram');
   if (!container) return;
 
-  // Group by hour
+  // Group by hour (0-23)
   const hours = Array(24).fill(0);
   orders.forEach(o => {
-    const h = new Date(o.createdAt).getHours();
-    hours[h]++;
+    try {
+      const h = new Date(o.createdAt).getHours();
+      if (!isNaN(h)) hours[h]++;
+    } catch (e) {
+      console.warn("Invalid date on order:", o);
+    }
   });
 
   const max = Math.max(...hours, 1);
   
   container.innerHTML = hours.map((count, h) => {
-    const height = (count / max) * 100;
+    // Ensure height is at least 1% if count > 0 to be visible
+    const height = count > 0 ? Math.max((count / max) * 100, 3) : 0;
     const label = h === 0 ? '12 AM' : h < 12 ? `${h} AM` : h === 12 ? '12 PM' : `${h - 12} PM`;
     
     return `
@@ -1244,79 +1249,77 @@ function renderAnalytics() {
 
   // 1. Period Metrics
   const revenue = filteredOrders.reduce((sum, o) => sum + getOrderTotal(o), 0);
-  const avgOrderValue = filteredOrders.length > 0 ? revenue / filteredOrders.length : 0;
-
-  // 2. All-Time Metrics
-  const totalRevenue = paidOrders.reduce((sum, o) => sum + getOrderTotal(o), 0);
-  
-  // 3. Current Month Total
-  const now = new Date();
-  const monthOrders = paidOrders.filter(o => {
-    const d = new Date(o.createdAt);
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-  });
-  const monthRevenue = monthOrders.reduce((sum, o) => sum + getOrderTotal(o), 0);
 
   // Update UI Labels & Values
-  document.getElementById('label-orders').textContent = `📦 Orders (${selectedAnalyticsPeriod})`;
-  document.getElementById('label-revenue').textContent = `💰 Revenue (${selectedAnalyticsPeriod})`;
+  document.getElementById('label-orders').textContent = `📦 Total Orders (${selectedAnalyticsPeriod})`;
+  document.getElementById('label-revenue').textContent = `💰 Total Revenue (${selectedAnalyticsPeriod})`;
   document.getElementById('label-waiter-perf').textContent = `👤 Waiter Performance (${selectedAnalyticsPeriod})`;
   
   document.getElementById('metric-orders').textContent = filteredOrders.length;
   document.getElementById('metric-revenue').textContent = formatPrice(revenue);
-  document.getElementById('metric-month-revenue').textContent = formatPrice(monthRevenue);
-  document.getElementById('metric-aov').textContent = formatPrice(avgOrderValue);
-  document.getElementById('metric-total-revenue').textContent = formatPrice(totalRevenue);
 
   // Updated Month/Year Header
   const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  document.getElementById('cal-month-text').textContent = months[selectedDate.getMonth()];
-  document.getElementById('cal-year-text').textContent = selectedDate.getFullYear();
+  if (document.getElementById('cal-month-text')) {
+    document.getElementById('cal-month-text').textContent = months[selectedDate.getMonth()];
+    document.getElementById('cal-year-text').textContent = selectedDate.getFullYear();
+  }
 
   // Histogram
   renderHourlyHistogram(filteredOrders);
 
-  // Most Ordered (Item) - Period specific
-  let counts = {};
-  filteredOrders.forEach(o => o.items.forEach(i => counts[i.menuItemId] = (counts[i.menuItemId] || 0) + i.qty));
-  const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+  // Top 3 Ordered Items
+  const topList = document.getElementById('top-ordered-list');
+  if (topList) {
+    let counts = {};
+    filteredOrders.forEach(o => o.items.forEach(i => counts[i.menuItemId] = (counts[i.menuItemId] || 0) + i.qty));
+    
+    const sortedItems = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1]) // Top items first
+      .slice(0, 3);
 
-  if (top) {
-    const mi = getMenuItemById(parseInt(top[0]));
-    if (mi) {
-      document.getElementById('mo-name').textContent = mi.name;
-      document.getElementById('mo-count').textContent = `${top[1]} ordered`;
-      document.getElementById('mo-progress').style.width = Math.min((top[1] / 10) * 100, 100) + '%';
+    if (sortedItems.length > 0) {
+      topList.innerHTML = sortedItems.map(([id, qty]) => {
+        const item = getMenuItemById(parseInt(id));
+        if (!item) return '';
+        const percentage = Math.min((qty / 20) * 100, 100);
+        return `
+          <div class="top-item-row">
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+              <span style="font-weight:700; color:var(--text-primary); font-size:14px;">${item.name}</span>
+              <span style="font-weight:800; color:var(--primary); font-size:14px;">${qty}</span>
+            </div>
+            <div class="progress-bar" style="height:6px; background:var(--border);">
+              <div class="progress-bar-fill" style="width:${percentage}%; background:var(--primary); height:100%; border-radius:3px;"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    } else {
+      topList.innerHTML = `<div style="text-align:center; padding:10px; color:var(--text-muted); font-size:13px;">No data for this period.</div>`;
     }
-  } else {
-    document.getElementById('mo-name').textContent = '--';
-    document.getElementById('mo-count').textContent = '0 ordered';
-    document.getElementById('mo-progress').style.width = '0%';
   }
 
-  // Calendar render (Live for selected month)
+  // Calendar render
   const grid = document.getElementById('cal-grid-content');
   if (grid) {
     let html = '';
     ['S', 'M', 'T', 'W', 'T', 'F', 'S'].forEach(d => html += `<div class="cal-day-name">${d}</div>`);
-
     const selMonth = selectedDate.getMonth();
     const selYear = selectedDate.getFullYear();
     const firstDay = new Date(selYear, selMonth, 1).getDay();
     const daysInMonth = new Date(selYear, selMonth + 1, 0).getDate();
     const today = new Date();
-
     for (let i = 0; i < firstDay; i++) html += `<div class="cal-day empty"></div>`;
-
     for (let i = 1; i <= daysInMonth; i++) {
-      const isToday = today.getDate() === i && today.getMonth() === selMonth && today.getFullYear() === selYear;
-      const isSelected = selectedDate.getDate() === i && selectedDate.getMonth() === selMonth && selectedDate.getFullYear() === selYear;
-      html += `<div class="cal-day ${isToday ? 'today' : ''} ${isSelected ? 'active' : ''}" onclick="selectAnalyticsDate(${i})">${i}</div>`;
+        const isToday = today.getDate() === i && today.getMonth() === selMonth && today.getFullYear() === selYear;
+        const isSelected = selectedDate.getDate() === i && selectedDate.getMonth() === selMonth && selectedDate.getFullYear() === selYear;
+        html += `<div class="cal-day ${isToday ? 'today' : ''} ${isSelected ? 'active' : ''}" onclick="selectAnalyticsDate(${i})">${i}</div>`;
     }
     grid.innerHTML = html;
   }
 
-  // Waiter Performance (Selected Period)
+  // Waiter Performance (Ascending Count)
   const waiterList = document.getElementById('waiter-performance-list');
   if (waiterList) {
     const waiterCounts = {};
@@ -1325,26 +1328,27 @@ function renderAnalytics() {
       waiterCounts[name] = (waiterCounts[name] || 0) + 1;
     });
 
-    const topWaiters = Object.entries(waiterCounts).sort((a, b) => b[1] - a[1]);
+    // User specifically asked for ASCENDING count
+    const sortedWaiters = Object.entries(waiterCounts).sort((a, b) => a[1] - b[1]);
 
-    if (topWaiters.length > 0) {
-      waiterList.innerHTML = topWaiters.map(([name, count]) => `
+    if (sortedWaiters.length > 0) {
+      waiterList.innerHTML = sortedWaiters.map(([name, count]) => `
         <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:10px; border-bottom:1px solid var(--border);">
           <div style="display:flex; align-items:center; gap:12px;">
             <div style="width:36px; height:36px; border-radius:50%; background:var(--primary-soft); display:flex; align-items:center; justify-content:center; font-size:16px;">👤</div>
             <div>
               <div style="font-weight:700; color:var(--text-primary); font-size:15px;">${name}</div>
-              <div style="font-size:12px; color:var(--text-muted);">${selectedAnalyticsPeriod} Stats</div>
+              <div style="font-size:12px; color:var(--text-muted);">${selectedAnalyticsPeriod}</div>
             </div>
           </div>
           <div style="text-align:right;">
             <div style="font-size:16px; font-weight:800; color:var(--success);">${count}</div>
-            <div style="font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Orders</div>
+            <div style="font-size:10px; color:var(--text-muted); text-transform:uppercase;">Orders</div>
           </div>
         </div>
       `).join('');
     } else {
-      waiterList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-muted); font-size:14px;">No completed orders for this ${selectedAnalyticsPeriod.toLowerCase()} yet.</div>`;
+      waiterList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-muted); font-size:13px;">No orders.</div>`;
     }
   }
 }
