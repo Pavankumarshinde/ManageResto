@@ -159,67 +159,78 @@ OrderItem.belongsTo(MenuItem, { foreignKey: 'menuItemId' });
 // Sync Database
 // --- Migration Helper ---
 async function migrateUser(userId) {
-  const state = await RestoState.findOne({ where: { userId } });
-  if (!state) return;
+  try {
+    const state = await RestoState.findOne({ where: { userId } });
+    if (!state) return;
 
-  console.log(`📦 Migrating data for User ${userId}...`);
+    console.log(`📦 Migrating data for User ${userId}...`);
 
-  const menu = JSON.parse(state.menu || '[]');
-  const orders = JSON.parse(state.orders || '[]');
-  const waiters = JSON.parse(state.waiters || '[]');
+    // Redundant JSON.parse removed as getters already handle it
+    const menu = state.menu || [];
+    const orders = state.orders || [];
+    const waiters = state.waiters || [];
 
-  // 1. Categories & Menu Items
-  const categories = [...new Set(menu.map(item => item.category))];
-  for (const catName of categories) {
-    const [cat] = await Category.findOrCreate({ where: { name: catName, userId } });
-    const catItems = menu.filter(item => item.category === catName);
-    for (const item of catItems) {
-      await MenuItem.findOrCreate({
-        where: { frontendId: item.id, userId },
+    // 1. Categories & Menu Items
+    const categories = [...new Set(menu.map(item => item.category))];
+    for (const catName of categories) {
+      if (!catName) continue;
+      const [cat] = await Category.findOrCreate({ where: { name: catName, userId } });
+      const catItems = menu.filter(item => item.category === catName);
+      for (const item of catItems) {
+        await MenuItem.findOrCreate({
+          where: { frontendId: item.id, userId },
+          defaults: {
+            name: item.name,
+            price: item.price,
+            type: item.type,
+            image: item.image,
+            categoryId: cat.id
+          }
+        });
+      }
+    }
+
+    // 2. Waiters
+    for (const waiterName of waiters) {
+      if (waiterName) {
+        await Waiter.findOrCreate({ where: { name: waiterName, userId } });
+      }
+    }
+
+    // 3. Orders
+    for (const o of orders) {
+      const [order, created] = await Order.findOrCreate({
+        where: { frontendId: o.id, userId },
         defaults: {
-          name: item.name,
-          price: item.price,
-          type: item.type,
-          image: item.image,
-          categoryId: cat.id
+          tableNumber: o.tableNumber,
+          waiterName: o.waiterName,
+          paid: o.paid,
+          createdAt: o.createdAt
         }
       });
-    }
-  }
 
-  // 2. Waiters
-  for (const waiterName of waiters) {
-    await Waiter.findOrCreate({ where: { name: waiterName, userId } });
-  }
-
-  // 3. Orders
-  for (const o of orders) {
-    const [order] = await Order.findOrCreate({
-      where: { frontendId: o.id, userId },
-      defaults: {
-        tableNumber: o.tableNumber,
-        waiterName: o.waiterName,
-        paid: o.paid,
-        createdAt: o.createdAt
+      // Only migrate items if the order was newly created to avoid duplicates
+      if (created && o.items && Array.isArray(o.items)) {
+        for (const item of o.items) {
+          const mi = await MenuItem.findOne({ where: { frontendId: item.menuItemId, userId } });
+          if (!mi) continue;
+          await OrderItem.create({
+            orderId: order.id,
+            menuItemId: mi.id,
+            qty: item.qty,
+            status: item.status,
+            priceAtTime: mi.price
+          });
+        }
       }
-    });
-
-    for (const item of o.items) {
-      const mi = await MenuItem.findOne({ where: { frontendId: item.menuItemId, userId } });
-      if (!mi) continue;
-      await OrderItem.create({
-        orderId: order.id,
-        menuItemId: mi.id,
-        qty: item.qty,
-        status: item.status,
-        priceAtTime: mi.price
-      });
     }
-  }
 
-  // Delete legacy state after successful migration
-  // await state.destroy(); 
-  console.log(`✅ Migration for User ${userId} complete.`);
+    console.log(`✅ Migration for User ${userId} complete.`);
+  } catch (error) {
+    console.error(`❌ Migration failed for User ${userId}:`, error);
+    // We don't throw here to allow login to proceed even if migration fails partially,
+    // though the user might see empty data if RestoState is gone (but we don't delete it yet).
+  }
 }
 
 // Request logger middleware
