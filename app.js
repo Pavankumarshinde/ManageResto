@@ -712,7 +712,8 @@ async function printReceipt() {
       <h2 style="margin:0">${user ? user.restaurantName : 'ManageResto'}</h2>
       <p style="margin:5px 0">${user ? user.location : 'Restaurant Manager'}</p>
       <p style="margin:0">Order #${order.id} | Table ${order.tableNumber}</p>
-      <p style="margin:5px 0">${new Date(order.createdAt).toLocaleString()}</p>
+      <p style="margin:5px 0">Waiter: ${order.waiterName || 'N/A'}</p>
+      <p style="margin:0">${new Date(order.createdAt).toLocaleString()}</p>
     </div>
     <div class="receipt-divider"></div>
     ${itemsHtml}
