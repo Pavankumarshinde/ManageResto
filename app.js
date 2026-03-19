@@ -87,7 +87,7 @@ async function checkStatus() {
     
     // 🛡️ SYNC GUARD: Only trigger fetch if the server has data NEWER than our last local change
     if (serverTime > lastServerSyncTime && serverTime > lastLocalChangeTime) {
-      console.log('🔄 Remote change detected, fetching...');
+      console.log(`🔄 Remote change detected! Server: ${serverTime}, Local Sync: ${lastServerSyncTime}`);
       await fetchState(true);
     }
   } catch (err) {
@@ -132,10 +132,15 @@ async function fetchState(forced = false) {
     state.nextMenuId = data.nextMenuId || 100;
     state.waiters = data.waiters || [];
 
-    // 🔴 Update sync timestamps
-    lastServerSyncTime = new Date().getTime();
+    // 🔴 Update sync timestamps from server data
+    if (data.updatedAt) {
+      lastServerSyncTime = new Date(data.updatedAt).getTime();
+    } else {
+      lastServerSyncTime = new Date().getTime();
+    }
 
     // 🔴 Re-render UI
+    console.log('✅ State updated and UI re-rendered');
     if (currentPage === 'orders') renderOrders();
     if (currentPage === 'menu') renderMenuPage();
     if (currentPage === 'analytics') renderAnalytics();
@@ -149,9 +154,7 @@ async function fetchState(forced = false) {
   }
 }
 
-// Polling interval (Every 1 second)
-if (pollInterval) clearInterval(pollInterval);
-pollInterval = setInterval(fetchState, 1000);
+// Polling interval removed in favor of checkStatus in loadState
 
 // ===== PERSISTENCE (Node.js API) =====
 async function saveState() {
@@ -240,6 +243,13 @@ async function loadState() {
     state.nextOrderId = data.nextOrderId || 10;
     state.nextMenuId = data.nextMenuId || 100;
     state.waiters = data.waiters && data.waiters.length > 0 ? data.waiters : (typeof WAITERS !== 'undefined' ? [...WAITERS] : []);
+
+    // Set initial sync time
+    if (data.updatedAt) {
+      lastServerSyncTime = new Date(data.updatedAt).getTime();
+    } else {
+      lastServerSyncTime = Date.now();
+    }
 
     initSocket(); // Initialize real-time updates
     
