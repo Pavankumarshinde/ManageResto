@@ -63,6 +63,31 @@ const User = sequelize.define('User', {
   password: { type: DataTypes.STRING, allowNull: false }
 });
 
+const RestoState = sequelize.define('RestoState', {
+  userId: { type: DataTypes.INTEGER, unique: true },
+  menu: { 
+    type: DataTypes.TEXT('long'),
+    get() { const val = this.getDataValue('menu'); return val ? JSON.parse(val) : []; },
+    set(val) { this.setDataValue('menu', JSON.stringify(val)); }
+  },
+  orders: { 
+    type: DataTypes.TEXT('long'),
+    get() { const val = this.getDataValue('orders'); return val ? JSON.parse(val) : []; },
+    set(val) { this.setDataValue('orders', JSON.stringify(val)); }
+  },
+  waiters: { 
+    type: DataTypes.TEXT('long'),
+    get() { const val = this.getDataValue('waiters'); return val ? JSON.parse(val) : []; },
+    set(val) { this.setDataValue('waiters', JSON.stringify(val)); }
+  },
+  nextOrderId: { type: DataTypes.INTEGER },
+  nextMenuId: { type: DataTypes.INTEGER }
+});
+
+// Relationships
+User.hasOne(RestoState, { foreignKey: 'userId' });
+RestoState.belongsTo(User, { foreignKey: 'userId' });
+
 // Relationships
 User.hasMany(Category, { foreignKey: 'userId' });
 User.hasMany(MenuItem, { foreignKey: 'userId' });

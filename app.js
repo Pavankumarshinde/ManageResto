@@ -74,32 +74,20 @@ let fetchController = null;
 let isSyncing = false;
 
 async function checkStatus() {
-  if (!token || isSyncing || isProcessingQueue) return;
+  if (!token || isSyncing || isProcessingQueue || (Date.now() - lastSaveTime < 5000)) return;
 
   try {
     const res = await fetch(`${API_BASE}/api/status`, { headers: authHeaders() });
     
-    // Fallback: If backend is old (404), do a full fetch only once every 30s
-    if (res.status === 404) {
-      const now = Date.now();
-      if (!window._lastFullSyncTime || (now - window._lastFullSyncTime > 30000)) {
-        console.warn("⚠️ /api/status 404. Falling back to 30s full sync.");
-        window._lastFullSyncTime = now;
-        await fetchState(true);
-      }
-      return;
-    }
-
     if (res.status === 401 || res.status === 403) { handleLogout(); return; }
-    
+    if (!res.ok) return;
+
     const data = await res.json();
     const serverTime = new Date(data.lastUpdated).getTime();
     
     // 🛡️ SYNC GUARD: Only trigger fetch if the server has data NEWER than our last local change
-    // This prevents "flipping" during the 1s window after a save.
     if (serverTime > lastServerSyncTime && serverTime > lastLocalChangeTime) {
       console.log('🔄 Remote change detected, fetching...');
-      lastServerSyncTime = serverTime;
       await fetchState(true);
     }
   } catch (err) {
@@ -111,9 +99,9 @@ async function fetchState(forced = false) {
   // 🟢 Auth Guard: Only poll if we have a token!
   if (!token) return;
 
-  // If not forced, block if syncing
+  // Block polling if a save is in flight OR we recently saved (5s window)
   if (!forced) {
-    if (isSyncing || isProcessingQueue) return;
+    if (isSyncing || isProcessingQueue || (Date.now() - lastSaveTime < 5000)) return;
   }
 
   // Abort any previous fetch if still running
@@ -133,22 +121,19 @@ async function fetchState(forced = false) {
     }
 
     const data = await res.json();
-    const serverTime = new Date(data.lastUpdated || Date.now()).getTime();
-
-    // Final guard: Don't overwrite if we've made new changes while this fetch was in flight
-    if (!forced && lastLocalChangeTime > serverTime) {
-        console.log('⏳ Discarding stale fetch (local state is newer)');
-        return;
-    }
     
-    lastServerSyncTime = serverTime;
+    // Final guard if we started a save while the fetch was returning
+    if (!forced && (isSyncing || isProcessingQueue || (Date.now() - lastSaveTime < 5000))) return;
 
-    // 🔴 Update local state
+    // 🔴 Update local state (data is the RestoState object from backend)
     state.menu = data.menu || [];
     state.orders = data.orders || [];
     state.nextOrderId = data.nextOrderId || 1;
     state.nextMenuId = data.nextMenuId || 100;
     state.waiters = data.waiters || [];
+
+    // 🔴 Update sync timestamps
+    lastServerSyncTime = new Date().getTime();
 
     // 🔴 Re-render UI
     if (currentPage === 'orders') renderOrders();
@@ -157,13 +142,16 @@ async function fetchState(forced = false) {
 
   } catch (err) {
     if (err.name === 'AbortError') return;
-    console.error("Fetch failed", err);
+    console.error("Polling failed", err);
   } finally {
     fetchController = null;
     isSyncing = false;
   }
 }
-// (state is now defined at the top of the file)
+
+// Polling interval (Every 1 second)
+if (pollInterval) clearInterval(pollInterval);
+pollInterval = setInterval(fetchState, 1000);
 
 // ===== PERSISTENCE (Node.js API) =====
 async function saveState() {
@@ -186,27 +174,24 @@ async function processSaveQueue() {
   if (saveQueue.length === 0) return;
 
   isProcessingQueue = true;
-  // if (fetchController) fetchController.abort(); // Kill polling
+  if (fetchController) fetchController.abort(); // Kill polling
 
   // Always take the LATEST state from the queue
   const payload = saveQueue[saveQueue.length - 1];
   saveQueue = []; // Clear queue since we have the latest
 
   try {
-    lastSaveTime = Date.now();
     const res = await fetch(`${API_BASE}/api/state`, {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify(payload)
     });
-    if (socket) {
-      socket.emit('stateChanged'); // notify server
-    }
 
     if (!res.ok) throw new Error('Save failed');
 
-    // After a successful save, update our local sense of sync and immediately check status
-    await checkStatus(); 
+    // Successful save: Update lastSaveTime to block polls for 5s
+    lastSaveTime = Date.now();
+    
   } catch (err) {
     if (err.name !== 'AbortError') {
       console.error('Failed to save state to server', err);
