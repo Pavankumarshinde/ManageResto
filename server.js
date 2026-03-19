@@ -65,7 +65,8 @@ const User = sequelize.define('User', {
   email: { type: DataTypes.STRING, unique: true, allowNull: false },
   mobile: { type: DataTypes.STRING, unique: true, allowNull: false },
   location: { type: DataTypes.STRING },
-  password: { type: DataTypes.STRING, allowNull: false }
+  password: { type: DataTypes.STRING, allowNull: false },
+  migrated: { type: DataTypes.BOOLEAN, defaultValue: false }
 });
 
 const Category = sequelize.define('Category', {
@@ -159,83 +160,98 @@ OrderItem.belongsTo(MenuItem, { foreignKey: 'menuItemId' });
 // Sync Database
 // --- Migration Helper ---
 async function migrateUser(userId) {
+  const t = await sequelize.transaction();
   try {
-    console.log(`🔍 Checking migration for User ${userId}...`);
-    const state = await RestoState.findOne({ where: { userId } });
-    if (!state) {
-      console.log(`ℹ️ No RestoState found for User ${userId}. Skipping migration.`);
+    const user = await User.findByPk(userId, { transaction: t });
+    if (!user || user.migrated) {
+      await t.rollback();
       return;
     }
 
-    console.log(`📦 Migrating data for User ${userId}...`);
+    console.log(`🔍 Starting high-speed migration for User ${userId}...`);
+    const state = await RestoState.findOne({ where: { userId }, transaction: t });
+    if (!state) {
+      await user.update({ migrated: true }, { transaction: t });
+      await t.commit();
+      return;
+    }
 
-    const menu = state.menu || [];
-    const orders = state.orders || [];
-    const waiters = state.waiters || [];
-    console.log(`📊 Data to migrate: ${menu.length} items, ${orders.length} orders, ${waiters.length} waiters`);
+    const { menu = [], orders = [], waiters = [] } = state;
+    console.log(`📊 Migrating: ${menu.length} items, ${orders.length} orders, ${waiters.length} waiters`);
 
-    // 1. Categories & Menu Items
-    const categories = [...new Set(menu.map(item => item.category))];
-    console.log(`📂 Found ${categories.length} categories.`);
-    for (const catName of categories) {
-      if (!catName) continue;
-      const [cat] = await Category.findOrCreate({ where: { name: catName, userId } });
-      const catItems = menu.filter(item => item.category === catName);
-      console.log(`  ➕ Migrating ${catItems.length} items for category "${catName}"`);
-      for (const item of catItems) {
-        await MenuItem.findOrCreate({
-          where: { frontendId: item.id, userId },
+    // 1. Categories
+    const categoryNames = [...new Set(menu.map(i => i.category).filter(Boolean))];
+    const categoryMap = new Map();
+    for (const name of categoryNames) {
+      const [cat] = await Category.findOrCreate({ where: { name, userId }, transaction: t });
+      categoryMap.set(name, cat.id);
+    }
+
+    // 2. Menu Items (Bulk)
+    if (menu.length > 0) {
+      const menuData = menu.map(item => ({
+        frontendId: item.id,
+        userId,
+        name: item.name,
+        price: item.price,
+        type: item.type,
+        image: item.image,
+        categoryId: categoryMap.get(item.category) || null
+      }));
+      await MenuItem.bulkCreate(menuData, { ignoreDuplicates: true, transaction: t });
+    }
+
+    // 3. Waiters (Bulk)
+    if (waiters.length > 0) {
+      const waiterData = waiters.filter(Boolean).map(name => ({ name, userId }));
+      await Waiter.bulkCreate(waiterData, { ignoreDuplicates: true, transaction: t });
+    }
+
+    // 4. Orders & Items (Optimized)
+    if (orders.length > 0) {
+      // Get all menu items for mapping
+      const allMenuItems = await MenuItem.findAll({ where: { userId }, transaction: t });
+      const itemMap = new Map(allMenuItems.map(m => [m.frontendId, m.id]));
+
+      for (const o of orders) {
+        const [order, created] = await Order.findOrCreate({
+          where: { frontendId: o.id, userId },
           defaults: {
-            name: item.name,
-            price: item.price,
-            type: item.type,
-            image: item.image,
-            categoryId: cat.id
-          }
+            tableNumber: o.tableNumber,
+            waiterName: o.waiterName,
+            paid: o.paid,
+            totalAmount: 0, // Will calculate if needed
+            createdAt: o.createdAt
+          },
+          transaction: t
         });
-      }
-    }
 
-    // 2. Waiters
-    console.log(`🔌 Migrating ${waiters.length} waiters...`);
-    for (const waiterName of waiters) {
-      if (waiterName) {
-        await Waiter.findOrCreate({ where: { name: waiterName, userId } });
-      }
-    }
+        if (created && o.items && o.items.length > 0) {
+          const orderItemsData = o.items.map(item => {
+            const dbItemId = itemMap.get(item.menuItemId);
+            if (!dbItemId) return null;
+            return {
+              orderId: order.id,
+              menuItemId: dbItemId,
+              qty: item.qty,
+              status: item.status || 'Served',
+              priceAtTime: 0 // Snapshot if needed
+            };
+          }).filter(Boolean);
 
-    // 3. Orders
-    console.log(`📝 Migrating ${orders.length} orders...`);
-    for (const o of orders) {
-      const [order, created] = await Order.findOrCreate({
-        where: { frontendId: o.id, userId },
-        defaults: {
-          tableNumber: o.tableNumber,
-          waiterName: o.waiterName,
-          paid: o.paid,
-          createdAt: o.createdAt
-        }
-      });
-
-      if (created && o.items && Array.isArray(o.items)) {
-        console.log(`  🛒 Migrating ${o.items.length} items for Order #${o.id}`);
-        for (const item of o.items) {
-          const mi = await MenuItem.findOne({ where: { frontendId: item.menuItemId, userId } });
-          if (!mi) continue;
-          await OrderItem.create({
-            orderId: order.id,
-            menuItemId: mi.id,
-            qty: item.qty,
-            status: item.status,
-            priceAtTime: mi.price
-          });
+          if (orderItemsData.length > 0) {
+            await OrderItem.bulkCreate(orderItemsData, { transaction: t });
+          }
         }
       }
     }
 
-    console.log(`✅ Migration for User ${userId} complete.`);
+    await user.update({ migrated: true }, { transaction: t });
+    await t.commit();
+    console.log(`✅ Migration for User ${userId} complete!`);
   } catch (error) {
-    console.error(`❌ Migration failed for User ${userId}:`, error.message, error.stack);
+    await t.rollback();
+    console.error(`❌ Migration failed for User ${userId}:`, error.message);
   }
 }
 
