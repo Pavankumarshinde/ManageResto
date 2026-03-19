@@ -1602,3 +1602,108 @@ textarea.form-input {
   font-weight: 600;
   color: var(--text-primary);
 }
+
+/* ===== BILL MODAL ===== */
+.bill-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.bill-modal {
+  background: var(--bg-card);
+  width: 100%;
+  max-width: 450px;
+  border-radius: var(--radius-xl);
+  padding: 30px;
+  box-shadow: var(--shadow-md);
+  animation: modalPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes modalPop {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.bill-summary-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.bill-total-row {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 2px dashed var(--border);
+  font-weight: 800;
+  font-size: 20px;
+  color: var(--primary);
+}
+
+.payment-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.payment-option {
+  padding: 12px;
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-md);
+  text-align: center;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 13px;
+  transition: var(--transition);
+  color: var(--text-secondary);
+}
+
+.payment-option.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+/* ===== PRINT STYLES ===== */
+#receipt-print-area {
+  display: none;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #receipt-print-area, #receipt-print-area * {
+    visibility: visible;
+  }
+  #receipt-print-area {
+    display: block !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 80mm;
+    padding: 10mm;
+    background: white;
+    color: black;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 12px;
+  }
+  .receipt-header { text-align: center; margin-bottom: 10px; }
+  .receipt-divider { border-top: 1px dashed #000; margin: 10px 0; }
+  .receipt-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+  .receipt-footer { text-align: center; margin-top: 20px; font-size: 10px; }
+  
+  @page {
+    margin: 0;
+  }
+}

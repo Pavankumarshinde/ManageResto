@@ -535,6 +535,70 @@
 
   </div><!-- /#app -->
 
+  <!-- SCREEN: BILL DETAILS MODAL -->
+  <div id="bill-modal-overlay" class="bill-modal-overlay">
+    <div class="bill-modal">
+      <h2 class="serif" style="margin-bottom:8px;">Bill Details</h2>
+      <p style="color:var(--text-muted); font-size:13px; margin-bottom:24px;">Add extras and select payment method</p>
+      
+      <div class="form-group" style="margin-bottom:16px;">
+        <label class="form-label">Discount (%)</label>
+        <input type="number" id="bill-discount" class="form-input" placeholder="0" min="0" max="100" oninput="updateBillSummary()">
+      </div>
+      
+      <div class="form-group" style="margin-bottom:16px;">
+        <label class="form-label">Service Tax (%)</label>
+        <input type="number" id="bill-tax" class="form-input" placeholder="5" value="5" min="0" oninput="updateBillSummary()">
+      </div>
+      
+      <div class="form-group" style="margin-bottom:24px;">
+        <label class="form-label">Waiter Tip (₹)</label>
+        <input type="number" id="bill-tip" class="form-input" placeholder="0" min="0" oninput="updateBillSummary()">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Payment Method</label>
+        <div class="payment-grid" id="payment-methods">
+          <div class="payment-option active" onclick="selectPaymentMethod('Cash')">Cash</div>
+          <div class="payment-option" onclick="selectPaymentMethod('Card')">Card</div>
+          <div class="payment-option" onclick="selectPaymentMethod('UPI')">UPI</div>
+        </div>
+        <input type="hidden" id="selected-payment-method" value="Cash">
+      </div>
+
+      <div style="background:var(--primary-light); padding:20px; border-radius:var(--radius-md); margin-bottom:24px;">
+        <div class="bill-summary-row">
+          <span>Sub Total</span>
+          <span id="bill-subtotal">₹0.00</span>
+        </div>
+        <div class="bill-summary-row">
+          <span>Discount</span>
+          <span id="bill-discount-amt">-₹0.00</span>
+        </div>
+        <div class="bill-summary-row">
+          <span>Tax</span>
+          <span id="bill-tax-amt">+₹0.00</span>
+        </div>
+        <div class="bill-summary-row">
+          <span>Tip</span>
+          <span id="bill-tip-amt">+₹0.00</span>
+        </div>
+        <div class="bill-total-row">
+          <span>TOTAL</span>
+          <span id="bill-final-total">₹0.00</span>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:12px;">
+        <button class="btn btn-secondary" style="flex:1;" onclick="closeBillModal()">Cancel</button>
+        <button class="btn btn-primary" style="flex:2;" id="btn-confirm-print">Print Receipt</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden Print Area -->
+  <div id="receipt-print-area"></div>
+
   <!-- ==================== TOAST ==================== -->
   <div id="toast" class="toast">✓ Saved Successfully</div>
 

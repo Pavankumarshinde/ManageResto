@@ -13,6 +13,7 @@ console.log('🌐 API Base:', API_BASE);
 let saveQueue = [];
 let isProcessingQueue = false;
 let lastSaveTime = 0;
+let currentBillOrderId = null;
 let user = JSON.parse(localStorage.getItem('user')) || null;
 let token = localStorage.getItem('token') || null;
 let socket = null;
@@ -586,7 +587,13 @@ function renderOrderCard(order) {
           <div class="order-total-label">${isCompleted ? 'Total' : 'Total Amount'}</div>
           <div class="order-total-value">${total}</div>
         </div>
-        ${!isCompleted ? `<button class="btn btn-soft" style="height:40px; border-radius:12px;" onclick="openEditOrder(${order.id})">Add Items</button>` : ''}
+        ${!isCompleted 
+          ? `<button class="btn btn-soft" style="height:40px; border-radius:12px;" onclick="openEditOrder(${order.id})">Add Items</button>` 
+          : `<button class="btn btn-primary" style="height:40px; border-radius:12px; gap:6px;" onclick="openBillModal(${order.id})">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
+              Print Bill
+             </button>`
+        }
       </div>
     </div>
   `;
@@ -612,6 +619,120 @@ function togglePayment(orderId) {
   saveState();
   renderOrders();
   showToast('Order completed & paid ✓');
+  
+  // Proactively offer to print
+  if(confirm("Order marked as PAID. Would you like to print the bill now?")) {
+    openBillModal(orderId);
+  }
+}
+
+// ==========================================
+// BILLING & PRINTING
+// ==========================================
+window.selectPaymentMethod = function(method) {
+  document.querySelectorAll('.payment-option').forEach(opt => {
+    opt.classList.toggle('active', opt.textContent === method);
+  });
+  document.getElementById('selected-payment-method').value = method;
+}
+
+window.openBillModal = function(orderId) {
+  currentBillOrderId = orderId;
+  const order = state.orders.find(o => o.id === orderId);
+  if (!order) return;
+
+  const subtotal = getOrderTotal(order);
+  document.getElementById('bill-subtotal').textContent = formatPrice(subtotal);
+  
+  // Reset inputs
+  document.getElementById('bill-discount').value = '';
+  document.getElementById('bill-tax').value = '5';
+  document.getElementById('bill-tip').value = '';
+  selectPaymentMethod('Cash');
+  
+  updateBillSummary();
+  document.getElementById('bill-modal-overlay').style.display = 'flex';
+  
+  // Bind print button
+  document.getElementById('btn-confirm-print').onclick = printReceipt;
+}
+
+window.closeBillModal = function() {
+  document.getElementById('bill-modal-overlay').style.display = 'none';
+  currentBillOrderId = null;
+}
+
+window.updateBillSummary = function() {
+  if (!currentBillOrderId) return;
+  const order = state.orders.find(o => o.id === currentBillOrderId);
+  const subtotal = getOrderTotal(order);
+  
+  const discountPerc = parseFloat(document.getElementById('bill-discount').value) || 0;
+  const taxPerc = parseFloat(document.getElementById('bill-tax').value) || 0;
+  const tipAmt = parseFloat(document.getElementById('bill-tip').value) || 0;
+  
+  const discountAmt = (subtotal * discountPerc) / 100;
+  const taxAmt = ((subtotal - discountAmt) * taxPerc) / 100;
+  const finalTotal = subtotal - discountAmt + taxAmt + tipAmt;
+  
+  document.getElementById('bill-discount-amt').textContent = `- ${formatPrice(discountAmt)}`;
+  document.getElementById('bill-tax-amt').textContent = `+ ${formatPrice(taxAmt)}`;
+  document.getElementById('bill-tip-amt').textContent = `+ ${formatPrice(tipAmt)}`;
+  document.getElementById('bill-final-total').textContent = formatPrice(finalTotal);
+}
+
+async function printReceipt() {
+  const order = state.orders.find(o => o.id === currentBillOrderId);
+  if (!order) return;
+
+  const discountPerc = parseFloat(document.getElementById('bill-discount').value) || 0;
+  const taxPerc = parseFloat(document.getElementById('bill-tax').value) || 0;
+  const tipAmt = parseFloat(document.getElementById('bill-tip').value) || 0;
+  const paymentMethod = document.getElementById('selected-payment-method').value;
+
+  const subtotal = getOrderTotal(order);
+  const discountAmt = (subtotal * discountPerc) / 100;
+  const taxAmt = ((subtotal - discountAmt) * taxPerc) / 100;
+  const finalTotal = subtotal - discountAmt + taxAmt + tipAmt;
+
+  const printArea = document.getElementById('receipt-print-area');
+  
+  const itemsHtml = order.items.map(item => {
+    const mi = getMenuItemById(item.menuItemId);
+    return `
+      <div class="receipt-row">
+        <span>${item.qty} x ${mi ? mi.name : 'Unknown'}</span>
+        <span>${formatPrice((mi ? mi.price : 0) * item.qty)}</span>
+      </div>
+    `;
+  }).join('');
+
+  printArea.innerHTML = `
+    <div class="receipt-header">
+      <h2 style="margin:0">${user ? user.restaurantName : 'ManageResto'}</h2>
+      <p style="margin:5px 0">${user ? user.location : 'Restaurant Manager'}</p>
+      <p style="margin:0">Order #${order.id} | Table ${order.tableNumber}</p>
+      <p style="margin:5px 0">${new Date(order.createdAt).toLocaleString()}</p>
+    </div>
+    <div class="receipt-divider"></div>
+    ${itemsHtml}
+    <div class="receipt-divider"></div>
+    <div class="receipt-row"><span>Sub Total</span><span>${formatPrice(subtotal)}</span></div>
+    ${discountAmt > 0 ? `<div class="receipt-row"><span>Discount (${discountPerc}%)</span><span>-${formatPrice(discountAmt)}</span></div>` : ''}
+    <div class="receipt-row"><span>Tax (${taxPerc}%)</span><span>+${formatPrice(taxAmt)}</span></div>
+    ${tipAmt > 0 ? `<div class="receipt-row"><span>Tip</span><span>+${formatPrice(tipAmt)}</span></div>` : ''}
+    <div class="receipt-divider"></div>
+    <div class="receipt-row" style="font-weight:bold; font-size:16px;"><span>TOTAL</span><span>${formatPrice(finalTotal)}</span></div>
+    <div class="receipt-row" style="margin-top:10px;"><span>Paid By</span><span>${paymentMethod}</span></div>
+    <div class="receipt-divider"></div>
+    <div class="receipt-footer">
+      <p>Thank You For Supporting Local Business!</p>
+      <p>Visit Again Soon!</p>
+    </div>
+  `;
+
+  window.print();
+  closeBillModal();
 }
 
 // ==========================================
