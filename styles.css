@@ -1707,3 +1707,90 @@ textarea.form-input {
     margin: 0;
   }
 }
+
+/* ===== ENHANCED ANALYTICS ===== */
+.analytics-tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  padding: 0 4px;
+}
+
+.analytics-tab {
+  flex: 1;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-dark);
+  color: var(--text-secondary);
+  font-weight: 700;
+  font-size: 13px;
+  text-align: center;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.analytics-tab.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+  box-shadow: 0 4px 12px rgba(135, 31, 40, 0.15);
+}
+
+.histogram-container {
+  height: 200px;
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  margin-top: 24px;
+  padding-bottom: 30px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+}
+
+.histogram-bar-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 30px;
+}
+
+.histogram-bar {
+  width: 100%;
+  max-width: 25px;
+  background: var(--info);
+  border-radius: 4px 4px 0 0;
+  transition: height 0.3s ease, background 0.2s;
+  position: relative;
+  cursor: pointer;
+}
+
+.histogram-bar:hover {
+  background: var(--primary);
+}
+
+.histogram-bar:hover::after {
+  content: attr(data-value);
+  position: absolute;
+  top: -25px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--text-primary);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  white-space: nowrap;
+  z-index: 10;
+}
+
+.histogram-label {
+  font-size: 9px;
+  color: var(--text-muted);
+  font-weight: 700;
+  transform: rotate(-45deg);
+  margin-top: 10px;
+  white-space: nowrap;
+}

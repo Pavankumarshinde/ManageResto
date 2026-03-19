@@ -218,6 +218,13 @@
 
         <div class="scroll-content scroll-content-pb-nav">
 
+          <!-- Period Selection -->
+          <div class="analytics-tabs">
+            <div class="analytics-tab active" id="period-day" onclick="setAnalyticsPeriod('Day')">Day</div>
+            <div class="analytics-tab" id="period-week" onclick="setAnalyticsPeriod('Week')">Week</div>
+            <div class="analytics-tab" id="period-month" onclick="setAnalyticsPeriod('Month')">Month</div>
+          </div>
+
           <!-- Custom Calendar -->
           <div class="card calendar-card">
             <div class="cal-month-nav">
@@ -230,25 +237,26 @@
             </div>
 
             <div class="cal-grid" id="cal-grid-content">
-              <div class="cal-day-name">S</div>
-              <div class="cal-day-name">M</div>
-              <div class="cal-day-name">T</div>
-              <div class="cal-day-name">W</div>
-              <div class="cal-day-name">T</div>
-              <div class="cal-day-name">F</div>
-              <div class="cal-day-name">S</div>
               <!-- Days rendered here -->
             </div>
           </div>
 
+          <!-- Hourly Histogram -->
+          <div class="card" id="histogram-card" style="margin-top:20px;">
+            <div class="analytics-metric-title">📊 Hourly Order Distribution</div>
+            <div id="hourly-histogram" class="histogram-container">
+              <!-- Bars rendered by JS -->
+            </div>
+          </div>
+
           <!-- Metrics Row 1 -->
-          <div class="metric-row">
+          <div class="metric-row" style="margin-top:20px;">
             <div class="card analytics-metric">
-              <div class="analytics-metric-title">📦 Orders (Selected Day)</div>
+              <div class="analytics-metric-title" id="label-orders">📦 Total Orders</div>
               <div class="analytics-metric-value" id="metric-orders">0</div>
             </div>
             <div class="card analytics-metric">
-              <div class="analytics-metric-title">💰 Day's Revenue</div>
+              <div class="analytics-metric-title" id="label-revenue">💰 Total Revenue</div>
               <div class="analytics-metric-value" id="metric-revenue">₹0.00</div>
             </div>
           </div>
@@ -256,12 +264,12 @@
           <!-- Metrics Row 2 -->
           <div class="metric-row" style="margin-top:12px;">
             <div class="card analytics-metric">
-              <div class="analytics-metric-title">📅 Month's Revenue</div>
-              <div class="analytics-metric-value" id="metric-month-revenue">₹0.00</div>
-            </div>
-            <div class="card analytics-metric">
               <div class="analytics-metric-title">📈 Avg Order Value</div>
               <div class="analytics-metric-value" id="metric-aov">₹0.00</div>
+            </div>
+            <div class="card analytics-metric">
+              <div class="analytics-metric-title">📅 Month's Total</div>
+              <div class="analytics-metric-value" id="metric-month-revenue">₹0.00</div>
             </div>
           </div>
 
@@ -274,7 +282,7 @@
           </div>
 
           <!-- Most Ordered -->
-          <div class="card most-ordered-card">
+          <div class="card most-ordered-card" style="margin-top:20px;">
             <div class="analytics-metric-title">🍽️ Most Ordered Item</div>
             <h4 id="mo-name">--</h4>
             <p id="mo-count">0 ordered</p>
@@ -285,10 +293,9 @@
 
           <!-- Waiter Performance -->
           <div class="card" style="margin-top:24px;">
-            <div class="analytics-metric-title">👤 Waiter Performance (Month)</div>
+            <div class="analytics-metric-title" id="label-waiter-perf">👤 Waiter Performance</div>
             <div id="waiter-performance-list" style="margin-top:16px; display:flex; flex-direction:column; gap:12px;">
               <!-- Waiter stats rendered here -->
-              <div style="text-align:center; padding:20px; color:var(--text-muted); font-size:14px;">No completed orders for this month yet.</div>
             </div>
           </div>
 

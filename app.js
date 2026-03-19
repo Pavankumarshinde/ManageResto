@@ -1163,43 +1163,121 @@ function deleteMenuItem() {
 // ANALYTICS
 // ==========================================
 let selectedDate = new Date();
+let selectedAnalyticsPeriod = 'Day';
+
+window.setAnalyticsPeriod = function(period) {
+  selectedAnalyticsPeriod = period;
+  renderAnalytics();
+}
+
+function getOrdersInPeriod(date, period) {
+  const paidOrders = state.orders.filter(o => o.paid);
+  const d = new Date(date);
+  
+  if (period === 'Day') {
+    const dayStr = d.toDateString();
+    return paidOrders.filter(o => new Date(o.createdAt).toDateString() === dayStr);
+  } 
+  else if (period === 'Week') {
+    // Start of week (Sunday)
+    const start = new Date(d);
+    start.setDate(d.getDate() - d.getDay());
+    start.setHours(0, 0, 0, 0);
+    
+    // End of week (Saturday)
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+    
+    return paidOrders.filter(o => {
+      const co = new Date(o.createdAt);
+      return co >= start && co <= end;
+    });
+  } 
+  else if (period === 'Month') {
+    const month = d.getMonth();
+    const year = d.getFullYear();
+    return paidOrders.filter(o => {
+      const co = new Date(o.createdAt);
+      return co.getMonth() === month && co.getFullYear() === year;
+    });
+  }
+  return [];
+}
+
+function renderHourlyHistogram(orders) {
+  const container = document.getElementById('hourly-histogram');
+  if (!container) return;
+
+  // Group by hour
+  const hours = Array(24).fill(0);
+  orders.forEach(o => {
+    const h = new Date(o.createdAt).getHours();
+    hours[h]++;
+  });
+
+  const max = Math.max(...hours, 1);
+  
+  container.innerHTML = hours.map((count, h) => {
+    const height = (count / max) * 100;
+    const label = h === 0 ? '12 AM' : h < 12 ? `${h} AM` : h === 12 ? '12 PM' : `${h - 12} PM`;
+    
+    return `
+      <div class="histogram-bar-wrapper">
+        <div class="histogram-bar" style="height: ${height}%;" data-value="${count} orders"></div>
+        <div class="histogram-label">${label}</div>
+      </div>
+    `;
+  }).join('');
+}
 
 function renderAnalytics() {
   const paidOrders = state.orders.filter(o => o.paid);
+  const filteredOrders = getOrdersInPeriod(selectedDate, selectedAnalyticsPeriod);
+  
+  // Update Period Tabs UI
+  document.querySelectorAll('.analytics-tab').forEach(tab => {
+    const period = tab.textContent;
+    tab.classList.toggle('active', period === selectedAnalyticsPeriod);
+  });
 
-  // 1. Day Metrics (for selectedDate)
-  const selDayStr = selectedDate.toDateString();
-  const selDayOrders = paidOrders.filter(o => new Date(o.createdAt).toDateString() === selDayStr);
-  const selDayRevenue = selDayOrders.reduce((sum, o) => sum + getOrderTotal(o), 0);
+  // 1. Period Metrics
+  const revenue = filteredOrders.reduce((sum, o) => sum + getOrderTotal(o), 0);
+  const avgOrderValue = filteredOrders.length > 0 ? revenue / filteredOrders.length : 0;
 
-  // 2. Month Metrics (for selectedDate's month)
-  const selMonth = selectedDate.getMonth();
-  const selYear = selectedDate.getFullYear();
+  // 2. All-Time Metrics
+  const totalRevenue = paidOrders.reduce((sum, o) => sum + getOrderTotal(o), 0);
+  
+  // 3. Current Month Total
+  const now = new Date();
   const monthOrders = paidOrders.filter(o => {
     const d = new Date(o.createdAt);
-    return d.getMonth() === selMonth && d.getFullYear() === selYear;
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   });
   const monthRevenue = monthOrders.reduce((sum, o) => sum + getOrderTotal(o), 0);
 
-  // 3. Global Metrics
-  const totalRevenue = paidOrders.reduce((sum, o) => sum + getOrderTotal(o), 0);
-  const avgOrderValue = paidOrders.length > 0 ? totalRevenue / paidOrders.length : 0;
-
-  // Update UI
-  document.getElementById('metric-orders').textContent = selDayOrders.length;
-  document.getElementById('metric-revenue').textContent = formatPrice(selDayRevenue);
+  // Update UI Labels & Values
+  document.getElementById('label-orders').textContent = `📦 Orders (${selectedAnalyticsPeriod})`;
+  document.getElementById('label-revenue').textContent = `💰 Revenue (${selectedAnalyticsPeriod})`;
+  document.getElementById('label-waiter-perf').textContent = `👤 Waiter Performance (${selectedAnalyticsPeriod})`;
+  
+  document.getElementById('metric-orders').textContent = filteredOrders.length;
+  document.getElementById('metric-revenue').textContent = formatPrice(revenue);
   document.getElementById('metric-month-revenue').textContent = formatPrice(monthRevenue);
   document.getElementById('metric-aov').textContent = formatPrice(avgOrderValue);
   document.getElementById('metric-total-revenue').textContent = formatPrice(totalRevenue);
 
   // Updated Month/Year Header
   const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  document.getElementById('cal-month-text').textContent = months[selMonth];
-  document.getElementById('cal-year-text').textContent = selYear;
+  document.getElementById('cal-month-text').textContent = months[selectedDate.getMonth()];
+  document.getElementById('cal-year-text').textContent = selectedDate.getFullYear();
 
-  // Most Ordered (Item) - Only from paid orders (All-time or could be specific to selected date/month, sticking to all-time for consistency)
+  // Histogram
+  renderHourlyHistogram(filteredOrders);
+
+  // Most Ordered (Item) - Period specific
   let counts = {};
-  paidOrders.forEach(o => o.items.forEach(i => counts[i.menuItemId] = (counts[i.menuItemId] || 0) + i.qty));
+  filteredOrders.forEach(o => o.items.forEach(i => counts[i.menuItemId] = (counts[i.menuItemId] || 0) + i.qty));
   const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
 
   if (top) {
@@ -1207,7 +1285,7 @@ function renderAnalytics() {
     if (mi) {
       document.getElementById('mo-name').textContent = mi.name;
       document.getElementById('mo-count').textContent = `${top[1]} ordered`;
-      document.getElementById('mo-progress').style.width = Math.min((top[1] / 20) * 100, 100) + '%';
+      document.getElementById('mo-progress').style.width = Math.min((top[1] / 10) * 100, 100) + '%';
     }
   } else {
     document.getElementById('mo-name').textContent = '--';
@@ -1215,36 +1293,33 @@ function renderAnalytics() {
     document.getElementById('mo-progress').style.width = '0%';
   }
 
-  // Calendar render (Live for current month)
+  // Calendar render (Live for selected month)
   const grid = document.getElementById('cal-grid-content');
-  let html = '';
-  ['S', 'M', 'T', 'W', 'T', 'F', 'S'].forEach(d => html += `<div class="cal-day-name">${d}</div>`);
+  if (grid) {
+    let html = '';
+    ['S', 'M', 'T', 'W', 'T', 'F', 'S'].forEach(d => html += `<div class="cal-day-name">${d}</div>`);
 
-  // Calculate first day and days in month
-  const firstDay = new Date(selYear, selMonth, 1).getDay();
-  const daysInMonth = new Date(selYear, selMonth + 1, 0).getDate();
-  const today = new Date();
+    const selMonth = selectedDate.getMonth();
+    const selYear = selectedDate.getFullYear();
+    const firstDay = new Date(selYear, selMonth, 1).getDay();
+    const daysInMonth = new Date(selYear, selMonth + 1, 0).getDate();
+    const today = new Date();
 
-  // Padding
-  for (let i = 0; i < firstDay; i++) html += `<div class="cal-day empty"></div>`;
+    for (let i = 0; i < firstDay; i++) html += `<div class="cal-day empty"></div>`;
 
-  // Days
-  for (let i = 1; i <= daysInMonth; i++) {
-    const isToday = today.getDate() === i && today.getMonth() === selMonth && today.getFullYear() === selYear;
-    const isSelected = selectedDate.getDate() === i && selectedDate.getMonth() === selMonth && selectedDate.getFullYear() === selYear;
-
-    html += `<div class="cal-day ${isToday ? 'today' : ''} ${isSelected ? 'active' : ''}" 
-                  onclick="selectAnalyticsDate(${i})">${i}</div>`;
+    for (let i = 1; i <= daysInMonth; i++) {
+      const isToday = today.getDate() === i && today.getMonth() === selMonth && today.getFullYear() === selYear;
+      const isSelected = selectedDate.getDate() === i && selectedDate.getMonth() === selMonth && selectedDate.getFullYear() === selYear;
+      html += `<div class="cal-day ${isToday ? 'today' : ''} ${isSelected ? 'active' : ''}" onclick="selectAnalyticsDate(${i})">${i}</div>`;
+    }
+    grid.innerHTML = html;
   }
-  grid.innerHTML = html;
 
-  // 4. Waiter Performance (Selected Month)
+  // Waiter Performance (Selected Period)
   const waiterList = document.getElementById('waiter-performance-list');
   if (waiterList) {
     const waiterCounts = {};
-
-    // Group monthly orders by waiterName
-    monthOrders.forEach(o => {
+    filteredOrders.forEach(o => {
       const name = o.waiterName || 'Unknown';
       waiterCounts[name] = (waiterCounts[name] || 0) + 1;
     });
@@ -1258,7 +1333,7 @@ function renderAnalytics() {
             <div style="width:36px; height:36px; border-radius:50%; background:var(--primary-soft); display:flex; align-items:center; justify-content:center; font-size:16px;">👤</div>
             <div>
               <div style="font-weight:700; color:var(--text-primary); font-size:15px;">${name}</div>
-              <div style="font-size:12px; color:var(--text-muted);">This Month</div>
+              <div style="font-size:12px; color:var(--text-muted);">${selectedAnalyticsPeriod} Stats</div>
             </div>
           </div>
           <div style="text-align:right;">
@@ -1268,7 +1343,7 @@ function renderAnalytics() {
         </div>
       `).join('');
     } else {
-      waiterList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-muted); font-size:14px;">No completed orders for this month yet.</div>`;
+      waiterList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-muted); font-size:14px;">No completed orders for this ${selectedAnalyticsPeriod.toLowerCase()} yet.</div>`;
     }
   }
 }
@@ -1278,7 +1353,6 @@ window.selectAnalyticsDate = function (day) {
   renderAnalytics();
 }
 
-// Month Navigation
 window.changeAnalyticsMonth = function (delta) {
   selectedDate.setMonth(selectedDate.getMonth() + delta);
   renderAnalytics();
