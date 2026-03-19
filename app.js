@@ -588,7 +588,10 @@ function renderOrderCard(order) {
           <div class="order-total-value">${total}</div>
         </div>
         ${!isCompleted
-      ? `<button class="btn btn-soft" style="height:40px; border-radius:12px;" onclick="openEditOrder(${order.id})">Add Items</button>`
+      ? `<div style="display:flex; gap:8px;">
+           <button class="btn btn-soft" style="height:40px; border-radius:12px; flex:1;" onclick="openEditOrder(${order.id})">Add Items</button>
+           <button class="btn btn-soft" style="height:40px; border-radius:12px; color:var(--primary); border-color:var(--primary-soft);" onclick="cancelOrder(${order.id})">Cancel</button>
+         </div>`
       : `<button class="btn btn-primary" style="height:40px; border-radius:12px; gap:6px;" onclick="openBillModal(${order.id})">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
               Print Bill
@@ -940,6 +943,17 @@ function updateSummaryBar() {
   document.getElementById('summary-total').textContent = formatPrice(total);
 }
 
+window.cancelOrder = function (id) {
+  const order = state.orders.find(o => o.id === id);
+  if (!order) return;
+  if (confirm(`Are you sure you want to cancel the order for Table ${order.tableNumber}?`)) {
+    state.orders = state.orders.filter(o => o.id !== id);
+    saveState();
+    renderOrders();
+    showToast('Order cancelled');
+  }
+}
+
 function sendToKitchen() {
   const { tableNumber, waiterName, items, editingOrderId } = state.currentOrderFlow;
   const entries = Object.entries(items);
@@ -955,9 +969,8 @@ function sendToKitchen() {
     const o = state.orders.find(x => x.id === editingOrderId);
     if (o) {
       entries.forEach(([id, qty]) => {
-        const existing = o.items.find(i => i.menuItemId === parseInt(id));
-        if (existing) existing.qty += qty;
-        else o.items.push({ menuItemId: parseInt(id), qty, status: 'Preparing' });
+        // ALWAYS push as a new entry instead of merging
+        o.items.push({ menuItemId: parseInt(id), qty, status: 'Preparing' });
       });
     }
     showToast('Items added to order ✓');
