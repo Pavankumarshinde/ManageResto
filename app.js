@@ -17,6 +17,7 @@ let user = JSON.parse(localStorage.getItem('user')) || null;
 let token = localStorage.getItem('token') || null;
 let socket = null;
 let pollInterval = null;
+let eventSource = null;
 let lastServerSyncTime = null;
 let lastLocalChangeTime = 0; // 🛡️ Versioning: Tracks when we last modified the local state
 
@@ -73,35 +74,51 @@ function initSocket() {
 let fetchController = null;
 let isSyncing = false;
 
-async function checkStatus() {
-  if (!token || isSyncing || isProcessingQueue) return;
+// SSE Synchronization
+function initSSESync() {
+  if (eventSource) eventSource.close();
   
-  // 5s blackout after save to prevent "flipping"
-  if (Date.now() - lastSaveTime < 5000) return;
+  const sseUrl = `${API_BASE}/api/sync/events?token=${token}`;
+  console.log("📡 Initializing SSE Sync...");
+  
+  eventSource = new EventSource(sseUrl);
 
-  try {
-    const res = await fetch(`${API_BASE}/api/status?ts=${Date.now()}`, { headers: authHeaders() });
-    
-    if (res.status === 401 || res.status === 403) { handleLogout(); return; }
-    if (!res.ok) return;
+  eventSource.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      if (data.type === 'connected') {
+        console.log("✅ SSE Sync Connected");
+      } else if (data.type === 'stateUpdated') {
+        console.log("🔄 SSE: Remote state update received");
+        
+        // 🛡️ Guard: Don't overwrite if we recently saved (5s window)
+        if (Date.now() - lastSaveTime < 5000) {
+          console.log("⏳ Skipping SSE update due to recent local save");
+          return;
+        }
 
-    const data = await res.json();
-    const serverTime = new Date(data.lastUpdated).getTime();
-    
-    // console.log(`🔍 Status Check: Server=${serverTime}, Local=${lastServerSyncTime}`);
+        const newState = data.state;
+        state.menu = newState.menu || [];
+        state.orders = newState.orders || [];
+        state.nextOrderId = newState.nextOrderId || 1;
+        state.nextMenuId = newState.nextMenuId || 100;
+        state.waiters = newState.waiters || [];
 
-    // 🛡️ SYNC GUARD: Only trigger fetch if the server has data NEWER than our last local change
-    if (serverTime > lastServerSyncTime && serverTime > lastLocalChangeTime) {
-      console.log(`🔄 Remote change detected! (Server: ${serverTime} > Local: ${lastServerSyncTime})`);
-      await fetchState(true);
+        lastServerSyncTime = new Date(newState.updatedAt || Date.now()).getTime();
+        
+        console.log(`✅ State synced via SSE. Orders: ${state.orders.length}`);
+        renderApp();
+      }
+    } catch (err) {
+      console.error("SSE Message Error:", err);
     }
-  } catch (err) {
-    console.warn("Status check failed", err);
-  } finally {
-    // Schedule next check
-    if (pollInterval) clearTimeout(pollInterval);
-    pollInterval = setTimeout(checkStatus, 1500); // 1.5s delay to be safe
-  }
+  };
+
+  eventSource.onerror = (err) => {
+    console.warn("⚠️ SSE Connection lost. Retrying in 5s...");
+    eventSource.close();
+    setTimeout(initSSESync, 5000);
+  };
 }
 
 async function fetchState(forced = false) {
@@ -266,12 +283,8 @@ async function loadState() {
       lastServerSyncTime = Date.now();
     }
 
-    initSocket(); // Initialize real-time updates
-    
-    // Enable background 1-sec polling (lightweight status check)
-    // Enable background polling (lightweight status check)
-    if (pollInterval) clearTimeout(pollInterval);
-    pollInterval = setTimeout(checkStatus, 1000);
+    initSocket(); // Initialize real-time updates (legacy)
+    initSSESync(); // Initialize NEW SSE Sync
     
     showAuthUI(false);
     updateProfileUI();

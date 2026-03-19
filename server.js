@@ -15,6 +15,9 @@ const app = express();
 
 const server = http.createServer(app);
 
+// SSE Clients Tracking: Map<userId, res[]>
+const sseClients = new Map();
+
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow all origins — frontend can be hosted on Vercel, GitHub Pages, etc.
@@ -317,7 +320,7 @@ app.post('/api/login', async (req, res) => {
 
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  const token = (authHeader && authHeader.split(' ')[1]) || req.query.token;
   if (!token) return res.status(401).json({ error: 'Unauthorized' });
   jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) return res.status(403).json({ error: 'Forbidden' });
@@ -364,7 +367,51 @@ const mapStateOutput = (categories, menu, waiters, orders) => {
   };
 };
 
-// Get Status (Lightweight check)
+// SSE Endpoint for real-time sync
+app.get('/api/sync/events', authenticateToken, (req, res) => {
+  const userId = req.user.id;
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  // Add to tracking
+  if (!sseClients.has(userId)) sseClients.set(userId, []);
+  sseClients.get(userId).push(res);
+
+  console.log(`🔌 SSE Connected: User ${userId} (Total: ${sseClients.get(userId).length})`);
+
+  // Send initial connected message
+  res.write(`data: ${JSON.stringify({ type: 'connected' })}\n\n`);
+
+  // Heartbeat to keep connection alive on Render (every 25s)
+  const heartbeat = setInterval(() => {
+    res.write(':heartbeat\n\n');
+  }, 25000);
+
+  req.on('close', () => {
+    clearInterval(heartbeat);
+    const clients = sseClients.get(userId) || [];
+    const index = clients.indexOf(res);
+    if (index !== -1) clients.splice(index, 1);
+    if (clients.length === 0) sseClients.delete(userId);
+    console.log(`❌ SSE Disconnected: User ${userId}`);
+  });
+});
+
+// Update broadcast helper
+function broadcastState(userId, state) {
+  const clients = sseClients.get(userId);
+  if (clients) {
+    const data = JSON.stringify({ type: 'stateUpdated', state });
+    clients.forEach(client => {
+      client.write(`data: ${data}\n\n`);
+    });
+  }
+}
+
+// Get Status (Legacy/Fallback)
 app.get('/api/status', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -434,10 +481,10 @@ app.post('/api/state', authenticateToken, async (req, res) => {
 
     await state.save();
 
-    // ✅ Update user updatedAt to serve as a version stamp for lightweight polling
-    await User.update({ updatedAt: new Date() }, { where: { id: userId } });
+    // ✅ Broadcast to all devices via SSE
+    broadcastState(userId, state);
 
-    // ✅ Single source of truth event (Optional, but keeps legacy sockets useful)
+    // ✅ Single source of truth event (Legacy sockets)
     io.to(`restaurant:${userId}`).emit('stateUpdated', state);
 
     res.json({ success: true, state });
