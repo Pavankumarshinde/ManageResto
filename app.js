@@ -74,10 +74,13 @@ let fetchController = null;
 let isSyncing = false;
 
 async function checkStatus() {
-  if (!token || isSyncing || isProcessingQueue || (Date.now() - lastSaveTime < 5000)) return;
+  if (!token || isSyncing || isProcessingQueue) return;
+  
+  // 5s blackout after save to prevent "flipping"
+  if (Date.now() - lastSaveTime < 5000) return;
 
   try {
-    const res = await fetch(`${API_BASE}/api/status`, { headers: authHeaders() });
+    const res = await fetch(`${API_BASE}/api/status?ts=${Date.now()}`, { headers: authHeaders() });
     
     if (res.status === 401 || res.status === 403) { handleLogout(); return; }
     if (!res.ok) return;
@@ -85,13 +88,19 @@ async function checkStatus() {
     const data = await res.json();
     const serverTime = new Date(data.lastUpdated).getTime();
     
+    // console.log(`🔍 Status Check: Server=${serverTime}, Local=${lastServerSyncTime}`);
+
     // 🛡️ SYNC GUARD: Only trigger fetch if the server has data NEWER than our last local change
     if (serverTime > lastServerSyncTime && serverTime > lastLocalChangeTime) {
-      console.log(`🔄 Remote change detected! Server: ${serverTime}, Local Sync: ${lastServerSyncTime}`);
+      console.log(`🔄 Remote change detected! (Server: ${serverTime} > Local: ${lastServerSyncTime})`);
       await fetchState(true);
     }
   } catch (err) {
     console.warn("Status check failed", err);
+  } finally {
+    // Schedule next check
+    if (pollInterval) clearTimeout(pollInterval);
+    pollInterval = setTimeout(checkStatus, 1500); // 1.5s delay to be safe
   }
 }
 
@@ -140,10 +149,8 @@ async function fetchState(forced = false) {
     }
 
     // 🔴 Re-render UI
-    console.log('✅ State updated and UI re-rendered');
-    if (currentPage === 'orders') renderOrders();
-    if (currentPage === 'menu') renderMenuPage();
-    if (currentPage === 'analytics') renderAnalytics();
+    console.log(`✅ State synced successfully. Orders: ${state.orders.length}, Menu: ${state.menu.length}`);
+    renderApp(); 
 
   } catch (err) {
     if (err.name === 'AbortError') return;
@@ -154,7 +161,15 @@ async function fetchState(forced = false) {
   }
 }
 
-// Polling interval removed in favor of checkStatus in loadState
+// helper for global re-render
+function renderApp() {
+    if (currentPage === 'orders') renderOrders();
+    else if (currentPage === 'menu') renderMenuPage();
+    else if (currentPage === 'analytics') renderAnalytics();
+    else if (currentPage === 'profile') updateProfileUI();
+}
+
+// Polling managed via setTimeout in checkStatus/loadState
 
 // ===== PERSISTENCE (Node.js API) =====
 async function saveState() {
@@ -254,8 +269,9 @@ async function loadState() {
     initSocket(); // Initialize real-time updates
     
     // Enable background 1-sec polling (lightweight status check)
-    if (pollInterval) clearInterval(pollInterval);
-    pollInterval = setInterval(checkStatus, 1000);
+    // Enable background polling (lightweight status check)
+    if (pollInterval) clearTimeout(pollInterval);
+    pollInterval = setTimeout(checkStatus, 1000);
     
     showAuthUI(false);
     updateProfileUI();
