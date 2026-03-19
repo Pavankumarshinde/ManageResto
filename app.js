@@ -78,10 +78,10 @@ let isSyncing = false;
 // SSE Synchronization
 function initSSESync() {
   if (eventSource) eventSource.close();
-  
+
   const sseUrl = `${API_BASE}/api/sync/events?token=${token}`;
   console.log("📡 Initializing SSE Sync...");
-  
+
   eventSource = new EventSource(sseUrl);
 
   eventSource.onmessage = (event) => {
@@ -91,7 +91,7 @@ function initSSESync() {
         console.log("✅ SSE Sync Connected");
       } else if (data.type === 'stateUpdated') {
         console.log("🔄 SSE: Remote state update received");
-        
+
         // 🛡️ Guard: Don't overwrite if we recently saved (5s window)
         if (Date.now() - lastSaveTime < 5000) {
           console.log("⏳ Skipping SSE update due to recent local save");
@@ -106,7 +106,7 @@ function initSSESync() {
         state.waiters = newState.waiters || [];
 
         lastServerSyncTime = new Date(newState.updatedAt || Date.now()).getTime();
-        
+
         console.log(`✅ State synced via SSE. Orders: ${state.orders.length}`);
         renderApp();
       }
@@ -148,7 +148,7 @@ async function fetchState(forced = false) {
     }
 
     const data = await res.json();
-    
+
     // Final guard if we started a save while the fetch was returning
     if (!forced && (isSyncing || isProcessingQueue || (Date.now() - lastSaveTime < 5000))) return;
 
@@ -168,7 +168,7 @@ async function fetchState(forced = false) {
 
     // 🔴 Re-render UI
     console.log(`✅ State synced successfully. Orders: ${state.orders.length}, Menu: ${state.menu.length}`);
-    renderApp(); 
+    renderApp();
 
   } catch (err) {
     if (err.name === 'AbortError') return;
@@ -181,10 +181,10 @@ async function fetchState(forced = false) {
 
 // helper for global re-render
 function renderApp() {
-    if (currentPage === 'orders') renderOrders();
-    else if (currentPage === 'menu') renderMenuPage();
-    else if (currentPage === 'analytics') renderAnalytics();
-    else if (currentPage === 'profile') updateProfileUI();
+  if (currentPage === 'orders') renderOrders();
+  else if (currentPage === 'menu') renderMenuPage();
+  else if (currentPage === 'analytics') renderAnalytics();
+  else if (currentPage === 'profile') updateProfileUI();
 }
 
 // Polling managed via setTimeout in checkStatus/loadState
@@ -192,7 +192,7 @@ function renderApp() {
 // ===== PERSISTENCE (Node.js API) =====
 async function saveState() {
   lastLocalChangeTime = Date.now(); // Mark local state as "fresher" than current server state
-  
+
   // Push to queue to prevent concurrent POST races
   saveQueue.push({
     menu: [...state.menu],
@@ -227,7 +227,7 @@ async function processSaveQueue() {
 
     // Successful save: Update lastSaveTime to block polls for 5s
     lastSaveTime = Date.now();
-    
+
   } catch (err) {
     if (err.name !== 'AbortError') {
       console.error('Failed to save state to server', err);
@@ -286,7 +286,7 @@ async function loadState() {
 
     initSocket(); // Initialize real-time updates (legacy)
     initSSESync(); // Initialize NEW SSE Sync
-    
+
     showAuthUI(false);
     updateProfileUI();
 
@@ -587,13 +587,13 @@ function renderOrderCard(order) {
           <div class="order-total-label">${isCompleted ? 'Total' : 'Total Amount'}</div>
           <div class="order-total-value">${total}</div>
         </div>
-        ${!isCompleted 
-          ? `<button class="btn btn-soft" style="height:40px; border-radius:12px;" onclick="openEditOrder(${order.id})">Add Items</button>` 
-          : `<button class="btn btn-primary" style="height:40px; border-radius:12px; gap:6px;" onclick="openBillModal(${order.id})">
+        ${!isCompleted
+      ? `<button class="btn btn-soft" style="height:40px; border-radius:12px;" onclick="openEditOrder(${order.id})">Add Items</button>`
+      : `<button class="btn btn-primary" style="height:40px; border-radius:12px; gap:6px;" onclick="openBillModal(${order.id})">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
               Print Bill
              </button>`
-        }
+    }
       </div>
     </div>
   `;
@@ -619,9 +619,9 @@ function togglePayment(orderId) {
   saveState();
   renderOrders();
   showToast('Order completed & paid ✓');
-  
+
   // Proactively offer to print
-  if(confirm("Order marked as PAID. Would you like to print the bill now?")) {
+  if (confirm("Order marked as PAID. Would you like to print the bill now?")) {
     openBillModal(orderId);
   }
 }
@@ -629,52 +629,52 @@ function togglePayment(orderId) {
 // ==========================================
 // BILLING & PRINTING
 // ==========================================
-window.selectPaymentMethod = function(method) {
+window.selectPaymentMethod = function (method) {
   document.querySelectorAll('.payment-option').forEach(opt => {
     opt.classList.toggle('active', opt.textContent === method);
   });
   document.getElementById('selected-payment-method').value = method;
 }
 
-window.openBillModal = function(orderId) {
+window.openBillModal = function (orderId) {
   currentBillOrderId = orderId;
   const order = state.orders.find(o => o.id === orderId);
   if (!order) return;
 
   const subtotal = getOrderTotal(order);
   document.getElementById('bill-subtotal').textContent = formatPrice(subtotal);
-  
+
   // Reset inputs
   document.getElementById('bill-discount').value = '';
   document.getElementById('bill-tax').value = '5';
   document.getElementById('bill-tip').value = '';
   selectPaymentMethod('Cash');
-  
+
   updateBillSummary();
   document.getElementById('bill-modal-overlay').style.display = 'flex';
-  
+
   // Bind print button
   document.getElementById('btn-confirm-print').onclick = printReceipt;
 }
 
-window.closeBillModal = function() {
+window.closeBillModal = function () {
   document.getElementById('bill-modal-overlay').style.display = 'none';
   currentBillOrderId = null;
 }
 
-window.updateBillSummary = function() {
+window.updateBillSummary = function () {
   if (!currentBillOrderId) return;
   const order = state.orders.find(o => o.id === currentBillOrderId);
   const subtotal = getOrderTotal(order);
-  
+
   const discountPerc = parseFloat(document.getElementById('bill-discount').value) || 0;
   const taxPerc = parseFloat(document.getElementById('bill-tax').value) || 0;
   const tipAmt = parseFloat(document.getElementById('bill-tip').value) || 0;
-  
+
   const discountAmt = (subtotal * discountPerc) / 100;
   const taxAmt = ((subtotal - discountAmt) * taxPerc) / 100;
   const finalTotal = subtotal - discountAmt + taxAmt + tipAmt;
-  
+
   document.getElementById('bill-discount-amt').textContent = `- ${formatPrice(discountAmt)}`;
   document.getElementById('bill-tax-amt').textContent = `+ ${formatPrice(taxAmt)}`;
   document.getElementById('bill-tip-amt').textContent = `+ ${formatPrice(tipAmt)}`;
@@ -696,7 +696,7 @@ async function printReceipt() {
   const finalTotal = subtotal - discountAmt + taxAmt + tipAmt;
 
   const printArea = document.getElementById('receipt-print-area');
-  
+
   const itemsHtml = order.items.map(item => {
     const mi = getMenuItemById(item.menuItemId);
     return `
@@ -1166,7 +1166,7 @@ function deleteMenuItem() {
 let selectedDate = new Date();
 let selectedAnalyticsPeriod = 'Day';
 
-window.setAnalyticsPeriod = function(period) {
+window.setAnalyticsPeriod = function (period) {
   selectedAnalyticsPeriod = period;
   renderAnalytics();
 }
@@ -1174,27 +1174,27 @@ window.setAnalyticsPeriod = function(period) {
 function getOrdersInPeriod(date, period) {
   const paidOrders = state.orders.filter(o => o.paid);
   const d = new Date(date);
-  
+
   if (period === 'Day') {
     const dayStr = d.toDateString();
     return paidOrders.filter(o => new Date(o.createdAt).toDateString() === dayStr);
-  } 
+  }
   else if (period === 'Week') {
     // Start of week (Sunday)
     const start = new Date(d);
     start.setDate(d.getDate() - d.getDay());
     start.setHours(0, 0, 0, 0);
-    
+
     // End of week (Saturday)
     const end = new Date(start);
     end.setDate(start.getDate() + 6);
     end.setHours(23, 59, 59, 999);
-    
+
     return paidOrders.filter(o => {
       const co = new Date(o.createdAt);
       return co >= start && co <= end;
     });
-  } 
+  }
   else if (period === 'Month') {
     const month = d.getMonth();
     const year = d.getFullYear();
@@ -1222,12 +1222,12 @@ function renderHourlyHistogram(orders) {
   });
 
   const max = Math.max(...hours, 1);
-  
+
   container.innerHTML = hours.map((count, h) => {
-    // Ensure height is at least 1% if count > 0 to be visible
-    const height = count > 0 ? Math.max((count / max) * 100, 3) : 0;
+    // If count > 0, ensure it's at least 3% height so it's visible in the 200px container
+    const height = count > 0 ? Math.max((count / max) * 100, 5) : 0;
     const label = h === 0 ? '12 AM' : h < 12 ? `${h} AM` : h === 12 ? '12 PM' : `${h - 12} PM`;
-    
+
     return `
       <div class="histogram-bar-wrapper">
         <div class="histogram-bar" style="height: ${height}%;" data-value="${count} orders"></div>
@@ -1240,7 +1240,7 @@ function renderHourlyHistogram(orders) {
 function renderAnalytics() {
   const paidOrders = state.orders.filter(o => o.paid);
   const filteredOrders = getOrdersInPeriod(selectedDate, selectedAnalyticsPeriod);
-  
+
   // Update Period Tabs UI
   document.querySelectorAll('.analytics-tab').forEach(tab => {
     const period = tab.textContent;
@@ -1254,7 +1254,7 @@ function renderAnalytics() {
   document.getElementById('label-orders').textContent = `📦 Total Orders (${selectedAnalyticsPeriod})`;
   document.getElementById('label-revenue').textContent = `💰 Total Revenue (${selectedAnalyticsPeriod})`;
   document.getElementById('label-waiter-perf').textContent = `👤 Waiter Performance (${selectedAnalyticsPeriod})`;
-  
+
   document.getElementById('metric-orders').textContent = filteredOrders.length;
   document.getElementById('metric-revenue').textContent = formatPrice(revenue);
 
@@ -1273,7 +1273,7 @@ function renderAnalytics() {
   if (topList) {
     let counts = {};
     filteredOrders.forEach(o => o.items.forEach(i => counts[i.menuItemId] = (counts[i.menuItemId] || 0) + i.qty));
-    
+
     const sortedItems = Object.entries(counts)
       .sort((a, b) => b[1] - a[1]) // Top items first
       .slice(0, 3);
@@ -1312,9 +1312,9 @@ function renderAnalytics() {
     const today = new Date();
     for (let i = 0; i < firstDay; i++) html += `<div class="cal-day empty"></div>`;
     for (let i = 1; i <= daysInMonth; i++) {
-        const isToday = today.getDate() === i && today.getMonth() === selMonth && today.getFullYear() === selYear;
-        const isSelected = selectedDate.getDate() === i && selectedDate.getMonth() === selMonth && selectedDate.getFullYear() === selYear;
-        html += `<div class="cal-day ${isToday ? 'today' : ''} ${isSelected ? 'active' : ''}" onclick="selectAnalyticsDate(${i})">${i}</div>`;
+      const isToday = today.getDate() === i && today.getMonth() === selMonth && today.getFullYear() === selYear;
+      const isSelected = selectedDate.getDate() === i && selectedDate.getMonth() === selMonth && selectedDate.getFullYear() === selYear;
+      html += `<div class="cal-day ${isToday ? 'today' : ''} ${isSelected ? 'active' : ''}" onclick="selectAnalyticsDate(${i})">${i}</div>`;
     }
     grid.innerHTML = html;
   }
@@ -1328,8 +1328,8 @@ function renderAnalytics() {
       waiterCounts[name] = (waiterCounts[name] || 0) + 1;
     });
 
-    // User specifically asked for ASCENDING count
-    const sortedWaiters = Object.entries(waiterCounts).sort((a, b) => a[1] - b[1]);
+    // DESCENDING order
+    const sortedWaiters = Object.entries(waiterCounts).sort((a, b) => b[1] - a[1]);
 
     if (sortedWaiters.length > 0) {
       waiterList.innerHTML = sortedWaiters.map(([name, count]) => `
