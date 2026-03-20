@@ -1753,23 +1753,24 @@ textarea.form-input {
   }
   #receipt-print-area {
     display: block !important;
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 80mm;
-    padding: 10mm;
+    position: static;
+    margin: 20mm auto;
+    width: 150mm;
+    max-width: 90%;
+    padding: 15mm;
     background: white;
     color: black;
     font-family: 'Courier New', Courier, monospace;
-    font-size: 12px;
+    font-size: 16px;
+    border: 1px solid #eee;
   }
-  .receipt-header { text-align: center; margin-bottom: 10px; }
-  .receipt-divider { border-top: 1px dashed #000; margin: 10px 0; }
-  .receipt-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
-  .receipt-footer { text-align: center; margin-top: 20px; font-size: 10px; }
+  .receipt-header { text-align: center; margin-bottom: 20px; font-size: 24px; font-weight: bold; }
+  .receipt-divider { border-top: 2px dashed #000; margin: 15px 0; }
+  .receipt-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
+  .receipt-footer { text-align: center; margin-top: 30px; font-size: 14px; }
   
   @page {
-    margin: 0;
+    margin: 10mm;
   }
 }
 
