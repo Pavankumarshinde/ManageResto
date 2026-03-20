@@ -59,7 +59,7 @@
           </div>
           <div class="form-group">
             <label class="form-label">Password</label>
-            <input type="password" id="login-password" class="form-input" placeholder="••••••••">
+            <input type="password" id="login-password" class="form-input" placeholder="Enter Password">
           </div>
           <button class="btn btn-primary btn-full" onclick="handleLogin()">Login</button>
           <p class="auth-switch">Don't have an account? <a href="#" onclick="showAuthForm('signup')">Sign Up</a></p>
@@ -86,11 +86,11 @@
           </div>
           <div class="form-group">
             <label class="form-label">Create Password</label>
-            <input type="password" id="signup-password" class="form-input" placeholder="Min. 8 characters">
+            <input type="password" id="signup-password" class="form-input" placeholder="Enter Password">
           </div>
           <div class="form-group">
             <label class="form-label">Confirm Password</label>
-            <input type="password" id="signup-confirm-password" class="form-input" placeholder="Repeat password">
+            <input type="password" id="signup-confirm-password" class="form-input" placeholder="Enter Password">
           </div>
           <button class="btn btn-primary btn-full" onclick="handleSignup()">Sign Up</button>
           <p class="auth-switch">Already have an account? <a href="#" onclick="showAuthForm('login')">Login</a></p>
@@ -197,10 +197,16 @@
             + Add New Item
           </button>
 
-          <!-- Category Filter -->
           <div style="display:flex; gap:8px; overflow-x:auto; padding:0 0 16px; scrollbar-width:none;"
             id="menu-cat-pills">
             <!-- Pills rendered by JS -->
+          </div>
+
+          <!-- Availability Filter -->
+          <div class="tabs-row" style="margin-bottom:16px;">
+            <div class="tab active" id="menu-filter-all" onclick="switchMenuAvailability('All', this)">All</div>
+            <div class="tab" id="menu-filter-available" onclick="switchMenuAvailability('Available', this)">Available</div>
+            <div class="tab" id="menu-filter-unavailable" onclick="switchMenuAvailability('Unavailable', this)">Unavailable</div>
           </div>
 
 
@@ -384,7 +390,10 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label">Food Type</label>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <label class="form-label" style="margin-bottom:0;">Food Type / Category</label>
+              <button class="btn-text" onclick="addCustomCategory()" style="color:var(--primary); font-size:12px; font-weight:800; border:none; background:none; cursor:pointer;">+ Add New</button>
+            </div>
             <div class="pill-selector" id="form-item-category-pills">
               <!-- Rendered by JS -->
             </div>

@@ -32,9 +32,11 @@ let state = {
     tableNumber: '',
     waiterName: '',
     items: {},
+    itemNotes: {},
     editingOrderId: null,
   },
   waiters: [],
+  categories: [...(typeof CATEGORIES !== 'undefined' ? CATEGORIES : ['Starter', 'Main Course', 'Dessert', 'Beverages'])],
 };
 
 const authHeaders = () => ({
@@ -158,6 +160,7 @@ async function fetchState(forced = false) {
     state.nextOrderId = data.nextOrderId || 1;
     state.nextMenuId = data.nextMenuId || 100;
     state.waiters = data.waiters || [];
+    state.categories = data.categories || [];
 
     // 🔴 Update sync timestamps from server data
     if (data.updatedAt) {
@@ -199,7 +202,8 @@ async function saveState() {
     orders: JSON.parse(JSON.stringify(state.orders)),
     nextOrderId: state.nextOrderId,
     nextMenuId: state.nextMenuId,
-    waiters: state.waiters
+    waiters: state.waiters,
+    categories: [...state.categories]
   });
 
   processSaveQueue();
@@ -276,6 +280,7 @@ async function loadState() {
     state.nextOrderId = data.nextOrderId || 10;
     state.nextMenuId = data.nextMenuId || 100;
     state.waiters = data.waiters && data.waiters.length > 0 ? data.waiters : (typeof WAITERS !== 'undefined' ? [...WAITERS] : []);
+    state.categories = data.categories && data.categories.length > 0 ? data.categories : (typeof CATEGORIES !== 'undefined' ? [...CATEGORIES] : []);
 
     // Set initial sync time
     if (data.updatedAt) {
@@ -589,8 +594,11 @@ function renderOrderCard(order) {
     return `
       <div class="order-item-row">
         <div style="flex:1;">
-          <span style="color:var(--text-muted); font-weight:700; font-size:13px;">${item.qty}×</span> 
-          <span class="order-item-name" style="margin-left:4px;">${mi.name}</span>
+          <div style="display:flex; align-items:center;">
+            <span style="color:var(--text-muted); font-weight:700; font-size:13px;">${item.qty}×</span> 
+            <span class="order-item-name" style="margin-left:4px;">${mi.name}</span>
+          </div>
+          ${item.note ? `<div style="font-size:11px; color:var(--primary); font-style:italic; margin-top:2px;">Note: ${item.note}</div>` : ''}
         </div>
         ${actionHtml}
       </div>
@@ -788,9 +796,12 @@ async function printReceipt() {
   const itemsHtml = order.items.map(item => {
     const mi = getMenuItemById(item.menuItemId);
     return `
-      <div class="receipt-row">
-        <span>${item.qty} x ${mi ? mi.name : 'Unknown'}</span>
-        <span>${formatPrice((mi ? mi.price : 0) * item.qty)}</span>
+      <div class="receipt-row" style="display:block; margin-bottom: 5px;">
+        <div style="display:flex; justify-content:space-between; width:100%;">
+          <span>${item.qty} x ${mi ? mi.name : 'Unknown'}</span>
+          <span>${formatPrice((mi ? mi.price : 0) * item.qty)}</span>
+        </div>
+        ${item.note ? `<div style="font-size:10px; font-style:italic; border-left: 2px solid #ddd; padding-left: 5px; margin-top:2px;">* ${item.note}</div>` : ''}
       </div>
     `;
   }).join('');
@@ -935,6 +946,7 @@ window.selectWaiter = function (name) {
 }
 
 function openItemSelection() {
+  if (!state.currentOrderFlow.itemNotes) state.currentOrderFlow.itemNotes = {};
   document.getElementById('item-select-table-title').textContent = `Table ${state.currentOrderFlow.tableNumber}`;
   document.getElementById('order-item-search').value = '';
   renderOrderCategories('All');
@@ -943,8 +955,17 @@ function openItemSelection() {
   showScreen('screen-items');
 }
 
+window.setItemNote = function(itemId) {
+  const currentNote = state.currentOrderFlow.itemNotes[itemId] || '';
+  const note = prompt("Enter kitchen note for this item:", currentNote);
+  if (note !== null) {
+    state.currentOrderFlow.itemNotes[itemId] = note.trim();
+    renderOrderItems(document.getElementById('order-item-search').value, document.getElementById('order-cat-pills').dataset.active);
+  }
+}
+
 function renderOrderCategories(activeCat) {
-  const cats = ['All', 'Veg', 'Non-Veg', ...CATEGORIES];
+  const cats = ['All', 'Veg', 'Non-Veg', ...state.categories];
   const html = cats.map(c =>
     `<div class="pill-option ${activeCat === c ? 'active' : ''}" style="font-size:13px; padding:6px 16px; border-radius:16px; flex-shrink:0;" onclick="selectOrderCat('${c}')">${c}</div>`
   ).join('');
@@ -971,12 +992,11 @@ function renderOrderItems(search, category) {
 
   container.innerHTML = items.map(m => {
     const qty = state.currentOrderFlow.items[m.id] || 0;
+    const note = state.currentOrderFlow.itemNotes[m.id] || '';
 
     // Icon fallback based on category
     let emoji = '🍽️'; // Default
-
     const cat = (m.category || '').toLowerCase();
-
     if (cat.includes('tandoori')) emoji = '🔥';
     else if (cat.includes('starter')) emoji = '🥗';
     else if (cat.includes('soup')) emoji = '🍲';
@@ -994,16 +1014,22 @@ function renderOrderItems(search, category) {
       : emoji;
 
     return `
-      <div class="card" style="padding:16px; margin-bottom:12px; display:flex; align-items:center; gap:16px; border-radius:16px;">
+      <div class="card" style="padding:16px; margin-bottom:12px; display:flex; align-items:center; gap:16px; border-radius:16px; position:relative;">
         <div class="menu-item-icon" style="width:50px; height:50px; font-size:24px;">${imgHtml}</div>
-        <div class="menu-item-info">
+        <div class="menu-item-info" style="flex:1;">
           <h4 style="font-size:15px; margin-bottom:4px;">${m.name}</h4>
-          <div style="font-family:var(--font-serif); font-size:16px; font-weight:800; color:#1a1616;">${formatPrice(m.price)}</div>
+          <div style="font-family:var(--font-serif); font-size:16px; font-weight:800; color:#1a1616; display:flex; align-items:center; gap:8px;">
+            ${formatPrice(m.price)}
+            ${note ? `<span style="font-size:10px; background:var(--primary-soft); color:var(--primary); padding:2px 6px; border-radius:4px; font-weight:700;">🗒️ Note</span>` : ''}
+          </div>
         </div>
-        <div style="display:flex; align-items:center; gap:12px; background:var(--bg-app); border-radius:24px; padding:4px;">
-          <button style="width:32px; height:32px; border-radius:50%; border:none; background:white; font-size:18px; color:var(--text-muted); cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.05);" onclick="adjustQty(${m.id}, -1)">-</button>
-          <span style="font-size:15px; font-weight:800; min-width:20px; text-align:center;">${qty}</span>
-          <button style="width:32px; height:32px; border-radius:50%; border:none; background:var(--primary); color:white; font-size:18px; cursor:pointer;" onclick="adjustQty(${m.id}, 1)">+</button>
+        <div style="display:flex; align-items:center; gap:12px;">
+          ${qty > 0 ? `<button class="btn-text" onclick="setItemNote(${m.id})" style="font-size:14px; padding:8px; background:none; border:none; cursor:pointer;" title="Add Kitchen Note">🗒️</button>` : ''}
+          <div style="display:flex; align-items:center; gap:12px; background:var(--bg-app); border-radius:24px; padding:4px;">
+            <button style="width:32px; height:32px; border-radius:50%; border:none; background:white; font-size:18px; color:var(--text-muted); cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.05);" onclick="adjustQty(${m.id}, -1)">-</button>
+            <span style="font-size:15px; font-weight:800; min-width:20px; text-align:center;">${qty}</span>
+            <button style="width:32px; height:32px; border-radius:50%; border:none; background:var(--primary); color:white; font-size:18px; cursor:pointer;" onclick="adjustQty(${m.id}, 1)">+</button>
+          </div>
         </div>
       </div>
     `;
@@ -1060,8 +1086,8 @@ async function sendToKitchen() {
     const o = state.orders.find(x => x.id === editingOrderId);
     if (o) {
       entries.forEach(([id, qty]) => {
-        // ALWAYS push as a new entry instead of merging
-        o.items.push({ menuItemId: parseInt(id), qty, status: 'Preparing' });
+        const note = state.currentOrderFlow.itemNotes[id] || '';
+        o.items.push({ menuItemId: parseInt(id), qty, status: 'Preparing', note });
       });
     }
     showToast('Items added to order ✓');
@@ -1070,14 +1096,20 @@ async function sendToKitchen() {
       id: state.nextOrderId++,
       tableNumber,
       waiterName,
-      items: entries.map(([id, qty]) => ({ menuItemId: parseInt(id), qty, status: 'Preparing' })),
+      items: entries.map(([id, qty]) => ({ 
+        menuItemId: parseInt(id), 
+        qty, 
+        status: 'Preparing',
+        note: state.currentOrderFlow.itemNotes[id] || ''
+      })),
       paid: false,
       createdAt: new Date().toISOString()
     });
     showToast('Sent to Kitchen 🍳');
   }
 
-  saveState();
+  await saveState();
+  state.currentOrderFlow = { tableNumber: '', waiterName: '', items: {}, itemNotes: {}, editingOrderId: null };
   hideScreen('screen-items');
   hideScreen('screen-table');
   navigateTo('orders');
@@ -1096,6 +1128,15 @@ function openEditOrder(id) {
 // ==========================================
 let editingMenuId = null;
 let currentMenuCategory = 'All';
+let currentMenuAvailability = 'All';
+
+window.switchMenuAvailability = function (filter, el) {
+  currentMenuAvailability = filter;
+  const parent = el.parentElement;
+  parent.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderMenuPage();
+}
 
 function renderMenuPage() {
   const searchInput = document.getElementById('menu-search');
@@ -1111,6 +1152,12 @@ function renderMenuPage() {
     if (currentMenuCategory === 'Veg') items = items.filter(m => m.type === 'Veg');
     else if (currentMenuCategory === 'Non-Veg') items = items.filter(m => m.type === 'Non-Veg');
     else items = items.filter(i => i.category === currentMenuCategory);
+  }
+
+  if (currentMenuAvailability === 'Available') {
+    items = items.filter(i => i.available !== false);
+  } else if (currentMenuAvailability === 'Unavailable') {
+    items = items.filter(i => i.available === false);
   }
 
   document.getElementById('menu-count-badge').textContent = `${items.length} Items`;
@@ -1168,12 +1215,32 @@ function renderMenuCategories() {
   const container = document.getElementById('menu-cat-pills');
   if (!container) return;
 
-  const cats = ['All', 'Veg', 'Non-Veg', ...CATEGORIES];
+  const cats = ['All', 'Veg', 'Non-Veg', ...state.categories];
   container.innerHTML = cats.map(c =>
     `<div class="pill-option ${currentMenuCategory === c ? 'active' : ''}" 
           style="font-size:13px; padding:6px 16px; border-radius:16px; flex-shrink:0;" 
           onclick="selectMenuCategory('${c}')">${c}</div>`
   ).join('');
+}
+
+window.addCustomCategory = async function() {
+  const name = prompt("Enter new food category name:");
+  if (name && name.trim()) {
+    const cleanName = name.trim();
+    if (state.categories.includes(cleanName)) {
+      showToast('Category already exists');
+      return;
+    }
+    state.categories.push(cleanName);
+    await saveState();
+    if (currentPage === 'menu') {
+      renderMenuPage();
+      if (document.getElementById('screen-menu-form').classList.contains('active')) {
+        openMenuForm(editingMenuId); 
+      }
+    }
+    showToast(`Category "${cleanName}" added ✓`);
+  }
 }
 
 window.selectMenuCategory = function (cat) {
@@ -1199,8 +1266,8 @@ function openMenuForm(id = null) {
   document.getElementById('form-item-price').value = m ? m.price : '';
   document.getElementById('form-item-desc').value = '';
 
-  const cat = m ? m.category : CATEGORIES[0];
-  document.getElementById('form-item-category-pills').innerHTML = CATEGORIES.map(c =>
+  const cat = m ? m.category : (state.categories[0] || 'Uncategorized');
+  document.getElementById('form-item-category-pills').innerHTML = state.categories.map(c =>
     `<div class="pill-option ${cat === c ? 'active' : ''}" onclick="setMenuFormCat(this, '${c}')">${c}</div>`
   ).join('');
   document.getElementById('form-item-category-pills').dataset.val = cat;

@@ -107,8 +107,9 @@ const OrderItem = sequelize.define('OrderItem', {
   orderId: { type: DataTypes.INTEGER, allowNull: false },
   menuItemId: { type: DataTypes.INTEGER, allowNull: false },
   qty: { type: DataTypes.INTEGER, defaultValue: 1 },
-  status: { type: DataTypes.ENUM('Preparing', 'Served'), defaultValue: 'Preparing' },
-  priceAtTime: { type: DataTypes.DECIMAL(10, 2) } // Snapshotted price
+  status: { type: DataTypes.ENUM('Preparing', 'Prepared', 'Served'), defaultValue: 'Preparing' },
+  priceAtTime: { type: DataTypes.DECIMAL(10, 2) }, // Snapshotted price
+  note: { type: DataTypes.STRING }
 });
 
 // Legacy model for migration
@@ -128,6 +129,11 @@ const RestoState = sequelize.define('RestoState', {
     type: DataTypes.TEXT('long'),
     get() { const val = this.getDataValue('waiters'); return val ? JSON.parse(val) : []; },
     set(val) { this.setDataValue('waiters', JSON.stringify(val)); }
+  },
+  categories: {
+    type: DataTypes.TEXT('long'),
+    get() { const val = this.getDataValue('categories'); return val ? JSON.parse(val) : []; },
+    set(val) { this.setDataValue('categories', JSON.stringify(val)); }
   },
   nextOrderId: { type: DataTypes.INTEGER },
   nextMenuId: { type: DataTypes.INTEGER }
@@ -485,7 +491,8 @@ app.get('/api/state', authenticateToken, async (req, res) => {
         orders: initialData.orders,
         waiters: initialData.waiters,
         nextOrderId: initialData.nextOrderId,
-        nextMenuId: initialData.nextMenuId
+        nextMenuId: initialData.nextMenuId,
+        categories: initialData.categories
       });
     }
     
@@ -500,7 +507,7 @@ app.get('/api/state', authenticateToken, async (req, res) => {
 app.post('/api/state', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
-    const { menu, orders, nextOrderId, nextMenuId, waiters } = req.body;
+    const { menu, orders, nextOrderId, nextMenuId, waiters, categories } = req.body;
 
     let state = await RestoState.findOne({ where: { userId } });
     if (!state) {
@@ -513,6 +520,7 @@ app.post('/api/state', authenticateToken, async (req, res) => {
     if (nextOrderId !== undefined) state.nextOrderId = nextOrderId;
     if (nextMenuId !== undefined) state.nextMenuId = nextMenuId;
     if (waiters !== undefined) state.waiters = waiters;
+    if (categories !== undefined) state.categories = categories;
 
     await state.save();
 
