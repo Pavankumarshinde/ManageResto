@@ -1745,22 +1745,24 @@ textarea.form-input {
 }
 
 @media print {
-  body * {
-    visibility: hidden;
+  body > *:not(#receipt-print-area) {
+    display: none !important;
   }
   #receipt-print-area, #receipt-print-area * {
-    visibility: visible;
+    visibility: visible !important;
+    display: block !important;
   }
   #receipt-print-area {
-    display: block !important;
     position: static;
     margin: 10mm auto;
-    width: 100mm;
+    width: 150mm;
+    max-width: 100%;
     padding: 10mm;
     background: white;
     color: black;
     font-family: 'Courier New', Courier, monospace;
     font-size: 14px;
+    border: none;
   }
   .receipt-header { text-align: center; margin-bottom: 10px; font-weight: bold; }
   .receipt-divider { border-top: 1px dashed #000; margin: 10px 0; }
@@ -1768,7 +1770,7 @@ textarea.form-input {
   .receipt-footer { text-align: center; margin-top: 20px; font-size: 12px; }
   
   @page {
-    margin: 0;
+    margin: 5mm;
   }
 }
 

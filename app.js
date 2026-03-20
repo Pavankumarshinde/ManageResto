@@ -759,8 +759,11 @@ async function printReceipt() {
     </div>
   `;
 
-  window.print();
-  closeBillModal();
+  // Small delay to ensure the DOM has reflowed before printing
+  setTimeout(() => {
+    window.print();
+    closeBillModal();
+  }, 300);
 }
 
 // ==========================================
