@@ -793,18 +793,15 @@ async function printReceipt() {
 
   const printArea = document.getElementById('receipt-print-area');
 
-  const itemsHtml = order.items.map(item => {
-    const mi = getMenuItemById(item.menuItemId);
-    return `
-      <div class="receipt-row" style="display:block; margin-bottom: 5px;">
-        <div style="display:flex; justify-content:space-between; width:100%;">
+    const itemsHtml = order.items.map(item => {
+      const mi = getMenuItemById(item.menuItemId);
+      return `
+        <div class="receipt-row">
           <span>${item.qty} x ${mi ? mi.name : 'Unknown'}</span>
           <span>${formatPrice((mi ? mi.price : 0) * item.qty)}</span>
         </div>
-        ${item.note ? `<div style="font-size:10px; font-style:italic; border-left: 2px solid #ddd; padding-left: 5px; margin-top:2px;">* ${item.note}</div>` : ''}
-      </div>
-    `;
-  }).join('');
+      `;
+    }).join('');
 
   printArea.innerHTML = `
     <div class="receipt-header">
