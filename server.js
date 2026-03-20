@@ -556,20 +556,48 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
+async function patchSchema() {
+  console.log('🩹 Checking for missing columns...');
+  try {
+    // Add 'categories' to RestoStates if missing
+    try { 
+      await sequelize.query("ALTER TABLE `RestoStates` ADD COLUMN `categories` LONGTEXT;"); 
+      console.log('✅ Added categories to RestoStates'); 
+    } catch(e) { /* ignore if already exists */ }
+    
+    // Add 'note' to OrderItems if missing
+    try { 
+      await sequelize.query("ALTER TABLE `OrderItems` ADD COLUMN `note` VARCHAR(255);"); 
+      console.log('✅ Added note to OrderItems'); 
+    } catch(e) { }
+
+    // Add 'available' to MenuItems if missing
+    try { 
+      await sequelize.query("ALTER TABLE `MenuItems` ADD COLUMN `available` TINYINT(1) DEFAULT 1;"); 
+      console.log('✅ Added available to MenuItems'); 
+    } catch(e) { }
+
+  } catch (err) {
+    console.warn('⚠️ Patch error:', err.message);
+  }
+}
+
 async function startServer() {
   try {
-    console.log('🔄 Syncing database...');
-    // { alter: true } will add missing columns
-    await sequelize.sync({ alter: true });
-    console.log('✅ MySQL Relational Database synced!');
+    console.log('🔄 Syncing database (Safe mode)...');
+    // sync() without alter:true is safe. It creates tables that don't exist yet.
+    await sequelize.sync();
+    
+    // Manually add missing columns that syncing might miss/fail on
+    await patchSchema();
+    
+    console.log('✅ Database schema ready!');
     
     server.listen(PORT, '0.0.0.0', () => {
-      console.log(`📡 ManageResto Scaled Backend v1.1 Running on port ${PORT}`);
+      console.log(`📡 ManageResto Scaled Backend v1.2 Running on port ${PORT}`);
     });
   } catch (err) {
     console.error('❌ Failed to start server:', err);
-    // Exit if DB sync fails significantly (e.g. connection error)
-    // process.exit(1); 
   }
 }
 
