@@ -463,6 +463,38 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 2500);
 }
 
+// Custom Modal Implementation
+function showCustomModal({ title, message, icon = '💬', showCancel = true }) {
+  return new Promise((resolve) => {
+    const overlay = document.getElementById('custom-modal-overlay');
+    const titleEl = document.getElementById('custom-modal-title');
+    const messageEl = document.getElementById('custom-modal-message');
+    const iconEl = document.getElementById('custom-modal-icon');
+    const btnConfirm = document.getElementById('custom-modal-confirm');
+    const btnCancel = document.getElementById('custom-modal-cancel');
+
+    titleEl.textContent = title;
+    messageEl.textContent = message;
+    iconEl.textContent = icon;
+    btnCancel.style.display = showCancel ? 'block' : 'none';
+
+    overlay.style.display = 'flex';
+
+    const cleanup = (result) => {
+      overlay.style.display = 'none';
+      btnConfirm.onclick = null;
+      btnCancel.onclick = null;
+      resolve(result);
+    };
+
+    btnConfirm.onclick = () => cleanup(true);
+    btnCancel.onclick = () => cleanup(false);
+  });
+}
+
+window.showAlert = (title, message, icon = '🔔') => showCustomModal({ title, message, icon, showCancel: false });
+window.showConfirm = (title, message, icon = '❓') => showCustomModal({ title, message, icon, showCancel: true });
+
 // ===== NAVIGATION =====
 let currentPage = 'orders';
 
@@ -538,28 +570,29 @@ function renderOrderCard(order) {
 
     // In completed tab, just show text. In active, show toggle if not complete
     let actionHtml;
+    const status = item.status || 'Preparing';
+    const statusClass = status.toLowerCase();
+    
     if (isCompleted) {
-      actionHtml = `<span class="status-text served">SERVED</span>`;
+      actionHtml = `<span class="status-badge served">SERVED</span>`;
     } else {
-      const isServed = item.status === 'Served';
       actionHtml = `
-        <span class="status-text ${isServed ? 'served' : 'preparing'}">${isServed ? 'SERVED' : 'PREPARING'}</span>
-        <label class="toggle-switch">
-          <input type="checkbox" ${isServed ? 'checked' : ''} onchange="toggleItemStatus(${order.id}, ${idx})">
-          <span class="toggle-slider"></span>
-        </label>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button class="order-item-delete" onclick="deleteOrderItem(${order.id}, ${idx})" title="Remove item">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6"/></svg>
+          </button>
+          <span class="status-badge ${statusClass}" onclick="toggleItemStatus(${order.id}, ${idx})" title="Click to cycle status">${status}</span>
+        </div>
       `;
     }
 
     return `
       <div class="order-item-row">
-        <div>
+        <div style="flex:1;">
           <span style="color:var(--text-muted); font-weight:700; font-size:13px;">${item.qty}×</span> 
           <span class="order-item-name" style="margin-left:4px;">${mi.name}</span>
         </div>
-        <div class="order-item-right">
-          ${actionHtml}
-        </div>
+        ${actionHtml}
       </div>
     `;
   }).join('');
@@ -626,20 +659,47 @@ function renderOrderCard(order) {
   `;
 }
 
-function toggleItemStatus(orderId, itemIdx) {
+async function toggleItemStatus(orderId, itemIdx) {
   const order = state.orders.find(o => o.id === orderId);
   if (!order) return;
   const item = order.items[itemIdx];
-  item.status = item.status === 'Preparing' ? 'Served' : 'Preparing';
-  saveState();
+  
+  // Cycle: Preparing -> Prepared -> Served -> Preparing
+  if (item.status === 'Preparing') item.status = 'Prepared';
+  else if (item.status === 'Prepared') item.status = 'Served';
+  else item.status = 'Preparing';
+
+  await saveState();
   renderOrders();
 }
 
-function togglePayment(orderId) {
+async function deleteOrderItem(orderId, itemIdx) {
+  const order = state.orders.find(o => o.id === orderId);
+  if (!order) return;
+  
+  const mi = getMenuItemById(order.items[itemIdx].menuItemId);
+  const confirmed = await showConfirm("Delete Item", `Remove "${mi ? mi.name : 'this item'}" from the order?`, "🗑️");
+  if (!confirmed) return;
+
+  order.items.splice(itemIdx, 1);
+  
+  // If no items left, cancel the order?
+  if (order.items.length === 0) {
+    state.orders = state.orders.filter(o => o.id !== orderId);
+    showToast('Empty order removed');
+  } else {
+    showToast('Item removed');
+  }
+
+  await saveState();
+  renderOrders();
+}
+
+async function togglePayment(orderId) {
   const order = state.orders.find(o => o.id === orderId);
   if (!order) return;
 
-  const confirmed = confirm("Have you served all items and received the payment?");
+  const confirmed = await showConfirm("Payment Confirmation", "Have you served all items and received the payment?", "💰");
   if (!confirmed) return;
 
   order.paid = true;
@@ -648,7 +708,8 @@ function togglePayment(orderId) {
   showToast('Order completed & paid ✓');
 
   // Proactively offer to print
-  if (confirm("Order marked as PAID. Would you like to print the bill now?")) {
+  const printNow = await showConfirm("Print Receipt", "Order marked as PAID. Would you like to print the bill now?", "🖨️");
+  if (printNow) {
     openBillModal(orderId);
   }
 }
@@ -848,11 +909,12 @@ window.deleteWaiter = async function (name) {
   const hasHistory = state.orders.some(o => o.waiterName === name);
 
   if (hasHistory) {
-    alert(`Cannot delete ${name}: This waiter has order history.`);
+    showAlert("Cannot Delete", `This waiter (${name}) has order history.`);
     return;
   }
 
-  if (!confirm(`Are you sure you want to delete ${name}?`)) return;
+  const confirmed = await showConfirm("Delete Waiter", `Are you sure you want to delete ${name}?`, "🗑️");
+  if (!confirmed) return;
 
   state.waiters = state.waiters.filter(w => w !== name);
   await saveState();
@@ -970,10 +1032,11 @@ function updateSummaryBar() {
   document.getElementById('summary-total').textContent = formatPrice(total);
 }
 
-window.cancelOrder = function (id) {
+window.cancelOrder = async function (id) {
   const order = state.orders.find(o => o.id === id);
   if (!order) return;
-  if (confirm(`Are you sure you want to cancel the order for Table ${order.tableNumber}?`)) {
+  const confirmed = await showConfirm("Cancel Order", `Are you sure you want to cancel the order for Table ${order.tableNumber}?`, "🚫");
+  if (confirmed) {
     state.orders = state.orders.filter(o => o.id !== id);
     saveState();
     renderOrders();
@@ -981,16 +1044,17 @@ window.cancelOrder = function (id) {
   }
 }
 
-function sendToKitchen() {
+async function sendToKitchen() {
   const { tableNumber, waiterName, items, editingOrderId } = state.currentOrderFlow;
   const entries = Object.entries(items);
   if (entries.length === 0) { showToast('Add items first'); return; }
 
   const confirmMsg = editingOrderId
     ? "Are you sure? Items added to this order cannot be cancelled once sent."
-    : "Are you sure? Items sent to the kitchen can't be cancelled. Are you sure?";
+    : "Items sent to the kitchen cannot be cancelled. Proceed?";
 
-  if (!window.confirm(confirmMsg)) return;
+  const confirmed = await showConfirm("Send to Kitchen", confirmMsg, "🍳");
+  if (!confirmed) return;
 
   if (editingOrderId) {
     const o = state.orders.find(x => x.id === editingOrderId);
@@ -1168,7 +1232,7 @@ window.setDietToggle = function (type) {
   }
 }
 
-function saveMenuItem() {
+async function saveMenuItem() {
   const name = document.getElementById('form-item-name').value.trim();
   const price = Number(document.getElementById('form-item-price').value);
   const cat = document.getElementById('form-item-category-pills').dataset.val;
@@ -1178,10 +1242,11 @@ function saveMenuItem() {
   if (!price) { showToast('Valid price required'); return; }
 
   const confirmMsg = editingMenuId
-    ? "Are you sure you want to save changes to this menu item?"
-    : "Are you sure you want to add this new item to the menu?";
+    ? `Save changes to "${name}"?`
+    : `Add "${name}" to the menu?`;
 
-  if (!window.confirm(confirmMsg)) return;
+  const confirmed = await showConfirm("Menu Update", confirmMsg, "🍔");
+  if (!confirmed) return;
 
   if (editingMenuId) {
     const m = getMenuItemById(editingMenuId);
@@ -1199,13 +1264,14 @@ function saveMenuItem() {
   renderMenuPage();
 }
 
-function deleteMenuItem() {
+async function deleteMenuItem() {
   if (!editingMenuId) return;
 
   const m = getMenuItemById(editingMenuId);
-  const confirmMsg = `Are you sure you want to delete "${m ? m.name : 'this item'}" from the menu? This cannot be undone.`;
+  const confirmMsg = `Are you sure you want to delete "${m ? m.name : 'this item'}"? This cannot be undone.`;
 
-  if (!window.confirm(confirmMsg)) return;
+  const confirmed = await showConfirm("Delete Item", confirmMsg, "🗑️");
+  if (!confirmed) return;
 
   state.menu = state.menu.filter(item => item.id !== editingMenuId);
 
