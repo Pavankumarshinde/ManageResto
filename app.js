@@ -1240,6 +1240,28 @@ window.addCustomCategory = async function() {
   }
 }
 
+window.deleteCategory = async function(name) {
+  const isUsed = state.menu.some(m => m.category === name);
+  if (isUsed) {
+    showAlert("Cannot Delete", `This category ("${name}") is currently used by menu items. Change their category first.`);
+    return;
+  }
+
+  const confirmed = await showConfirm("Delete Category", `Are you sure you want to delete "${name}"?`, "🗑️");
+  if (!confirmed) return;
+
+  state.categories = state.categories.filter(c => c !== name);
+  await saveState();
+  
+  if (currentPage === 'menu') {
+    renderMenuPage();
+    if (document.getElementById('screen-menu-form').classList.contains('active')) {
+      openMenuForm(editingMenuId);
+    }
+  }
+  showToast(`Category "${name}" deleted`);
+}
+
 window.selectMenuCategory = function (cat) {
   currentMenuCategory = cat;
   renderMenuPage();
@@ -1265,7 +1287,10 @@ function openMenuForm(id = null) {
 
   const cat = m ? m.category : (state.categories[0] || 'Uncategorized');
   document.getElementById('form-item-category-pills').innerHTML = state.categories.map(c =>
-    `<div class="pill-option ${cat === c ? 'active' : ''}" onclick="setMenuFormCat(this, '${c}')">${c}</div>`
+    `<div class="pill-option ${cat === c ? 'active' : ''}" onclick="setMenuFormCat(this, '${c}')">
+      ${c}
+      <span class="pill-delete" onclick="event.stopPropagation(); deleteCategory('${c}')" title="Delete Category">×</span>
+    </div>`
   ).join('');
   document.getElementById('form-item-category-pills').dataset.val = cat;
 

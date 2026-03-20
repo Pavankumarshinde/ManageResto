@@ -1989,3 +1989,28 @@ textarea.form-input {
 .suggestion-name { font-weight: 700; font-size: 14px; color: var(--text-primary); }
 .suggestion-meta { font-size: 11px; color: var(--text-muted); }
 
+
+/* --- PILL DELETE BUTTON --- */
+.pill-option { position: relative; padding-right: 32px !important; }
+.pill-delete {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.05);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.pill-delete:hover {
+  background: var(--primary);
+  color: white;
+}
+
