@@ -81,6 +81,7 @@ const MenuItem = sequelize.define('MenuItem', {
   type: { type: DataTypes.ENUM('Veg', 'Non-Veg'), defaultValue: 'Veg' },
   image: { type: DataTypes.STRING },
   categoryId: { type: DataTypes.INTEGER },
+  available: { type: DataTypes.BOOLEAN, defaultValue: true },
   userId: { type: DataTypes.INTEGER, allowNull: false }
 }, {
   indexes: [ { unique: true, fields: ['userId', 'frontendId'] } ]
@@ -372,7 +373,8 @@ const mapStateOutput = (categories, menu, waiters, orders) => {
       price: m.price,
       type: m.type,
       image: m.image,
-      category: cat ? cat.name : 'Uncategorized'
+      category: cat ? cat.name : 'Uncategorized',
+      available: m.available
     };
   });
 

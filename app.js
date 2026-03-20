@@ -894,7 +894,7 @@ window.selectOrderCat = function (cat) {
 
 function renderOrderItems(search, category) {
   const container = document.getElementById('order-item-list');
-  let items = state.menu;
+  let items = state.menu.filter(m => m.available !== false);
 
   if (search) items = items.filter(m => m.name.toLowerCase().includes(search.toLowerCase()));
 
@@ -1073,7 +1073,7 @@ function renderMenuPage() {
       : emoji;
 
     return `
-      <div class="card menu-item-row" style="padding:16px;">
+      <div class="card menu-item-row ${m.available === false ? 'unavailable' : ''}" style="padding:16px;">
         <div class="menu-item-icon">${imgHtml}</div>
         <div class="menu-item-info">
           <h4>${m.name}</h4>
@@ -1083,9 +1083,15 @@ function renderMenuPage() {
             <span style="color:var(--text-muted)">• ${m.category}</span>
           </div>
         </div>
-        <button class="menu-item-edit" onclick="openMenuForm(${m.id})">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
-        </button>
+        <div style="display:flex; flex-direction:column; gap:8px; align-items:center; margin-left:auto;">
+          <label class="toggle-switch ${m.available === false ? '' : 'active'}" title="${m.available === false ? 'Mark as Available' : 'Mark as Unavailable'}" style="transform: scale(0.8);">
+            <input type="checkbox" ${m.available === false ? '' : 'checked'} onchange="toggleItemAvailability(${m.id})">
+            <span class="toggle-slider"></span>
+          </label>
+          <button class="menu-item-edit" onclick="openMenuForm(${m.id})" style="position:static; margin:0;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+          </button>
+        </div>
       </div>
     `;
   }).join('');
@@ -1106,6 +1112,15 @@ function renderMenuCategories() {
 window.selectMenuCategory = function (cat) {
   currentMenuCategory = cat;
   renderMenuPage();
+}
+
+window.toggleItemAvailability = async function (id) {
+  const m = getMenuItemById(id);
+  if (!m) return;
+  m.available = m.available === false ? true : false;
+  await saveState();
+  renderMenuPage();
+  showToast(`${m.name} is now ${m.available ? 'available' : 'unavailable'}`);
 }
 
 function openMenuForm(id = null) {
@@ -1171,7 +1186,7 @@ function saveMenuItem() {
     showToast('Saved successfully');
   } else {
     state.menu.unshift({
-      id: state.nextMenuId++, name, price, category: cat, type, image: null
+      id: state.nextMenuId++, name, price, category: cat, type, image: null, available: true
     });
     showToast('Added to menu');
   }
@@ -1267,6 +1282,7 @@ function renderHourlyHistogram(orders) {
 
     return `
       <div class="histogram-bar-wrapper">
+        ${count > 0 ? `<div class="histogram-count">${count}</div>` : ''}
         <div class="histogram-bar" style="height: ${height}%;" data-value="${count} orders"></div>
         <div class="histogram-label">${label}</div>
       </div>
