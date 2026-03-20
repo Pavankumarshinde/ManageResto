@@ -268,10 +268,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Sync Database
-sequelize.sync({ alter: true }).then(() => {
-  console.log('✅ MySQL Relational Database synced!');
-});
+// Sync Database (moved to startServer)
 
 // Socket.io Connection
 io.on('connection', (socket) => {
@@ -559,6 +556,21 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`📡 ManageResto Scaled Backend v1.0 Running on port ${PORT}`);
-});
+async function startServer() {
+  try {
+    console.log('🔄 Syncing database...');
+    // { alter: true } will add missing columns
+    await sequelize.sync({ alter: true });
+    console.log('✅ MySQL Relational Database synced!');
+    
+    server.listen(PORT, '0.0.0.0', () => {
+      console.log(`📡 ManageResto Scaled Backend v1.1 Running on port ${PORT}`);
+    });
+  } catch (err) {
+    console.error('❌ Failed to start server:', err);
+    // Exit if DB sync fails significantly (e.g. connection error)
+    // process.exit(1); 
+  }
+}
+
+startServer();
