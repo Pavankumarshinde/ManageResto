@@ -1958,3 +1958,34 @@ textarea.form-input {
   color: #166534;
   border-color: #dcfce7;
 }
+
+/* --- MENU ITEM SEARCH SUGGESTIONS --- */
+.suggestions-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 16px 16px;
+  box-shadow: var(--shadow-md);
+  z-index: 100;
+  max-height: 200px;
+  overflow-y: auto;
+  display: none;
+}
+.suggestion-item {
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  transition: var(--transition);
+  border-bottom: 1px solid var(--border);
+}
+.suggestion-item:last-child { border-bottom: none; }
+.suggestion-item:hover { background: var(--primary-light); }
+.suggestion-name { font-weight: 700; font-size: 14px; color: var(--text-primary); }
+.suggestion-meta { font-size: 11px; color: var(--text-muted); }
+

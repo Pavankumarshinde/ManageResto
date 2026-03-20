@@ -1275,7 +1275,56 @@ function openMenuForm(id = null) {
   const delBtn = document.getElementById('btn-delete-menu-item');
   if (delBtn) delBtn.style.display = id ? 'block' : 'none';
 
+  // Hide suggestions if they were open
+  const sugg = document.getElementById('menu-item-suggestions');
+  if (sugg) { sugg.style.display = 'none'; sugg.innerHTML = ''; }
+
   showScreen('screen-menu-form');
+}
+
+window.handleMenuNameInput = function(val) {
+  const container = document.getElementById('menu-item-suggestions');
+  if (!container) return;
+
+  if (editingMenuId) { // Don't show suggestions if we are already EDITING an item
+    container.style.display = 'none';
+    return;
+  }
+
+  const query = val.trim().toLowerCase();
+  if (query.length < 2) {
+    container.style.display = 'none';
+    container.innerHTML = '';
+    return;
+  }
+
+  const matches = state.menu.filter(m => m.name.toLowerCase().includes(query));
+  
+  if (matches.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+
+  container.innerHTML = matches.map(m => `
+    <div class="suggestion-item" onclick="selectMenuSuggestion(${m.id})">
+      <div style="display:flex; flex-direction:column; gap:2px;">
+        <span class="suggestion-name">${m.name}</span>
+        <span class="suggestion-meta">${m.category} • ${formatPrice(m.price)}</span>
+      </div>
+      <div style="font-size:12px; color:var(--primary); font-weight:700;">Edit ✏️</div>
+    </div>
+  `).join('');
+  
+  container.style.display = 'block';
+}
+
+window.selectMenuSuggestion = function(id) {
+  const container = document.getElementById('menu-item-suggestions');
+  if (container) {
+    container.style.display = 'none';
+    container.innerHTML = '';
+  }
+  openMenuForm(id);
 }
 
 window.setMenuFormCat = function (el, val) {
@@ -1653,3 +1702,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('diet-veg').addEventListener('click', () => setDietToggle('Veg'));
   document.getElementById('diet-nonveg').addEventListener('click', () => setDietToggle('Non-Veg'));
 });
+
+// Hide menu suggestions when clicking outside
+document.addEventListener('click', (e) => {
+  const container = document.getElementById('menu-item-suggestions');
+  const input = document.getElementById('form-item-name');
+  if (container && input && !container.contains(e.target) && e.target !== input) {
+    container.style.display = 'none';
+  }
+});
+
