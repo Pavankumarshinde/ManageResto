@@ -112,6 +112,13 @@ const OrderItem = sequelize.define('OrderItem', {
   note: { type: DataTypes.STRING }
 });
 
+// OTP Model for Password Reset
+const PasswordResetOTP = sequelize.define('PasswordResetOTP', {
+  identifier: { type: DataTypes.STRING, unique: true, allowNull: false }, // Email or Mobile
+  otp: { type: DataTypes.STRING, allowNull: false },
+  expiresAt: { type: DataTypes.DATE, allowNull: false }
+});
+
 // Legacy model for migration
 const RestoState = sequelize.define('RestoState', {
   userId: { type: DataTypes.INTEGER, unique: true },
@@ -352,6 +359,84 @@ app.post('/api/login', async (req, res) => {
     res.json({ token, user: { id: user.id, restaurantName: user.restaurantName, email: user.email, mobile: user.mobile, location: user.location } });
   } catch (error) {
     res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+// --- Forgot Password Endpoints ---
+const nodemailer = require('nodemailer');
+
+// Mock Email Transporter (Use Ethereal for testing or real SMTP for production)
+const transporter = nodemailer.createTransport({
+  host: "smtp.ethereal.email",
+  port: 587,
+  auth: {
+    user: "test@ethereal.email", // Placeholder
+    pass: "password"           // Placeholder
+  }
+});
+
+app.post('/api/forgot-password', async (req, res) => {
+  try {
+    const { identifier } = req.body;
+    const user = await User.findOne({ where: { [Sequelize.Op.or]: [{ email: identifier }, { mobile: identifier }] } });
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60000); // 10 mins
+
+    await PasswordResetOTP.upsert({ identifier, otp, expiresAt }, { where: { identifier } });
+
+    console.log(`🔑 OTP for ${identifier}: ${otp}`); // Log to console for easy testing
+
+    // In a real app, you'd send this via email/SMS
+    // For now, we'll just return success and log it.
+    res.json({ success: true, message: 'OTP sent successfully' });
+  } catch (error) {
+    console.error('Forgot Password Error:', error);
+    res.status(500).json({ error: 'Failed' });
+  }
+});
+
+app.post('/api/verify-otp', async (req, res) => {
+  try {
+    const { identifier, otp } = req.body;
+    const record = await PasswordResetOTP.findOne({ where: { identifier, otp } });
+
+    if (!record || record.expiresAt < new Date()) {
+      return res.status(400).json({ error: 'Invalid or expired OTP' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Verification failed' });
+  }
+});
+
+app.post('/api/reset-password', async (req, res) => {
+  try {
+    const { identifier, otp, newPassword } = req.body;
+    
+    // Verify OTP again for safety
+    const record = await PasswordResetOTP.findOne({ where: { identifier, otp } });
+    if (!record || record.expiresAt < new Date()) {
+      return res.status(400).json({ error: 'Session expired' });
+    }
+
+    const user = await User.findOne({ where: { [Sequelize.Op.or]: [{ email: identifier }, { mobile: identifier }] } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await user.update({ password: hashedPassword });
+
+    // Clean up OTP
+    await PasswordResetOTP.destroy({ where: { identifier } });
+
+    res.json({ success: true, message: 'Password updated successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Reset failed' });
   }
 });
 

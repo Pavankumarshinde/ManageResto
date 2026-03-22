@@ -340,6 +340,9 @@ window.showAuthForm = function (type) {
   document.getElementById('auth-container').style.display = 'block';
   document.getElementById('form-login').style.display = type === 'login' ? 'block' : 'none';
   document.getElementById('form-signup').style.display = type === 'signup' ? 'block' : 'none';
+  document.getElementById('form-forgot').style.display = type === 'forgot' ? 'block' : 'none';
+  document.getElementById('form-otp').style.display = type === 'otp' ? 'block' : 'none';
+  document.getElementById('form-reset').style.display = type === 'reset' ? 'block' : 'none';
 }
 
 window.hideAuthForm = function () {
@@ -411,6 +414,82 @@ window.handleLogin = async function () {
     showToast('Login successful ✓');
     showLoading('Syncing data & Migrating...');
     await loadState();
+  } catch (err) {
+    showToast(err.message);
+  } finally {
+    hideLoading();
+  }
+}
+
+// --- Forgot Password Logic ---
+window.handleRequestOTP = async function () {
+  const identifier = document.getElementById('forgot-identifier').value.trim();
+  if (!identifier) { showToast('Please enter email or mobile'); return; }
+
+  try {
+    showLoading('Sending OTP...');
+    const res = await fetch(`${API_BASE}/api/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to send OTP');
+
+    showToast('OTP sent! Check your email/logs');
+    showAuthForm('otp');
+  } catch (err) {
+    showToast(err.message);
+  } finally {
+    hideLoading();
+  }
+}
+
+window.handleVerifyOTP = async function () {
+  const identifier = document.getElementById('forgot-identifier').value.trim();
+  const otp = document.getElementById('forgot-otp').value.trim();
+  if (!otp || otp.length < 6) { showToast('Enter 6-digit OTP'); return; }
+
+  try {
+    showLoading('Verifying...');
+    const res = await fetch(`${API_BASE}/api/verify-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier, otp })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Invalid OTP');
+
+    showToast('OTP Verified ✓');
+    showAuthForm('reset');
+  } catch (err) {
+    showToast(err.message);
+  } finally {
+    hideLoading();
+  }
+}
+
+window.handleResetPassword = async function () {
+  const identifier = document.getElementById('forgot-identifier').value.trim();
+  const otp = document.getElementById('forgot-otp').value.trim();
+  const newPassword = document.getElementById('reset-new-password').value;
+  const confirm = document.getElementById('reset-confirm-password').value;
+
+  if (newPassword.length < 8) { showToast('Password too short (8+)'); return; }
+  if (newPassword !== confirm) { showToast('Passwords do not match'); return; }
+
+  try {
+    showLoading('Resetting password...');
+    const res = await fetch(`${API_BASE}/api/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier, otp, newPassword })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Reset failed');
+
+    showToast('Password reset successful! Please login.');
+    showAuthForm('login');
   } catch (err) {
     showToast(err.message);
   } finally {
