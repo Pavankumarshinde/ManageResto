@@ -366,10 +366,11 @@ app.post('/api/login', async (req, res) => {
 const nodemailer = require('nodemailer');
 
 // Real SMTP Transporter (Uses credentials from .env or Render/Vercel)
-console.log(`📡 Email Transporter: ${process.env.EMAIL_HOST ? 'REAL (' + process.env.EMAIL_HOST + ')' : 'MOCK (Ethereal)'}`);
+console.log(`📡 Email Transporter v1.3: ${process.env.EMAIL_HOST ? 'REAL (' + process.env.EMAIL_HOST + ')' : 'MOCK (Ethereal)'}`);
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST || "smtp.ethereal.email",
-  port: parseInt(process.env.EMAIL_PORT || "587"),
+  port: parseInt(process.env.EMAIL_PORT || "465"), // Use 465 for SSL or 587 for STARTTLS
+  secure: (process.env.EMAIL_PORT === "465" || !process.env.EMAIL_PORT), // true for 465, false for other ports
   auth: {
     user: process.env.EMAIL_USER || "test@ethereal.email",
     pass: process.env.EMAIL_PASS || "password"

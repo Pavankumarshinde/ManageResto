@@ -39,7 +39,7 @@
         <h1 class="serif">ManageYour<br><span class="text-primary">Resto</span></h1>
         <p>The premium choice for modern restaurant management.</p>
         <div class="auth-toggle-buttons">
-          <button class="btn btn-primary" onclick="showAuthForm('signup')">Get Started</button>
+          <button class="btn btn-primary" onclick="showAuthForm('signup')">Get Started as new user</button>
           <button class="btn btn-secondary" onclick="showAuthForm('login')">Login</button>
         </div>
       </div>
@@ -47,7 +47,10 @@
       <!-- Auth Forms -->
       <div id="auth-container" class="auth-container" style="display:none;">
         <button class="btn-back" onclick="hideAuthForm()">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7" /></svg>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 12H5M12 5l-7 7 7 7" />
+          </svg>
         </button>
 
         <div id="form-login" class="auth-form">
@@ -63,8 +66,10 @@
           </div>
           <button class="btn btn-primary btn-full" onclick="handleLogin()">Login</button>
           <div style="display:flex; justify-content:space-between; margin-top:16px; font-size:14px;">
-            <p class="auth-switch" style="margin:0;">Don't have an account? <a href="#" onclick="showAuthForm('signup')">Sign Up</a></p>
-            <a href="#" onclick="showAuthForm('forgot')" style="color:var(--primary); font-weight:600; text-decoration:none;">Forgot Password?</a>
+            <p class="auth-switch" style="margin:0;">Don't have an account? <a href="#"
+                onclick="showAuthForm('signup')">Sign Up</a></p>
+            <a href="#" onclick="showAuthForm('forgot')"
+              style="color:var(--primary); font-weight:600; text-decoration:none;">Forgot Password?</a>
           </div>
         </div>
 
@@ -117,7 +122,8 @@
           <p>Enter the 6-digit code sent to you</p>
           <div class="form-group">
             <label class="form-label">OTP Code</label>
-            <input type="text" id="forgot-otp" class="form-input" placeholder="000000" maxlength="6" style="text-align:center; letter-spacing:8px; font-size:24px; font-weight:800;">
+            <input type="text" id="forgot-otp" class="form-input" placeholder="000000" maxlength="6"
+              style="text-align:center; letter-spacing:8px; font-size:24px; font-weight:800;">
           </div>
           <button class="btn btn-primary btn-full" onclick="handleVerifyOTP()">Verify OTP</button>
           <p class="auth-switch">Didn't get it? <a href="#" onclick="handleRequestOTP()">Resend</a></p>
@@ -175,8 +181,10 @@
         <span>Analytics</span>
       </button>
       <button class="sidebar-item" onclick="navigateTo('profile')" id="side-profile">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" />
         </svg>
         <span>Profile</span>
       </button>
@@ -185,11 +193,21 @@
     <div class="main-stage">
       <!-- Theme Toggle -->
       <button id="theme-toggle-btn" class="theme-toggle-btn" aria-label="Toggle Theme">
-        <svg class="sun-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        <svg class="sun-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5" />
+          <line x1="12" y1="1" x2="12" y2="3" />
+          <line x1="12" y1="21" x2="12" y2="23" />
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+          <line x1="1" y1="12" x2="3" y2="12" />
+          <line x1="21" y1="12" x2="23" y2="12" />
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
         </svg>
-        <svg class="moon-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        <svg class="moon-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
         </svg>
       </button>
 
@@ -247,8 +265,10 @@
           <!-- Availability Filter -->
           <div class="tabs-row" style="margin-bottom:16px;">
             <div class="tab active" id="menu-filter-all" onclick="switchMenuAvailability('All', this)">All</div>
-            <div class="tab" id="menu-filter-available" onclick="switchMenuAvailability('Available', this)">Available</div>
-            <div class="tab" id="menu-filter-unavailable" onclick="switchMenuAvailability('Unavailable', this)">Unavailable</div>
+            <div class="tab" id="menu-filter-available" onclick="switchMenuAvailability('Available', this)">Available
+            </div>
+            <div class="tab" id="menu-filter-unavailable" onclick="switchMenuAvailability('Unavailable', this)">
+              Unavailable</div>
           </div>
 
 
@@ -326,7 +346,8 @@
           <!-- Waiter Performance (In a box with scrollbar) -->
           <div class="card" style="margin-top:24px;">
             <div class="analytics-metric-title" id="label-waiter-perf">👤 Waiter Performance</div>
-            <div id="waiter-performance-box" style="margin-top:16px; max-height: 250px; overflow-y: auto; padding-right: 4px;">
+            <div id="waiter-performance-box"
+              style="margin-top:16px; max-height: 250px; overflow-y: auto; padding-right: 4px;">
               <div id="waiter-performance-list" style="display:flex; flex-direction:column; gap:12px;">
                 <!-- Waiter stats rendered here -->
               </div>
@@ -341,7 +362,8 @@
       <div id="page-profile" class="page">
         <div class="page-header">
           <h1>Profile</h1>
-          <button class="btn btn-soft" onclick="handleLogout()" style="border-radius:24px; padding:0 16px;">Logout</button>
+          <button class="btn btn-soft" onclick="handleLogout()"
+            style="border-radius:24px; padding:0 16px;">Logout</button>
         </div>
 
         <div class="scroll-content scroll-content-pb-nav">
@@ -369,8 +391,10 @@
 
           <div class="card" style="border-color: #ffc7c7; background: #fff8f8;">
             <h3 style="color:var(--primary); margin-bottom:12px;">App Settings</h3>
-            <p style="font-size:13px; color:var(--text-secondary); margin-bottom:16px;">System settings and data management.</p>
-            <button class="btn btn-secondary btn-full" style="color:var(--primary); border-color:var(--primary);" onclick="showToast('Cleared local cache')">Clear Local Cache</button>
+            <p style="font-size:13px; color:var(--text-secondary); margin-bottom:16px;">System settings and data
+              management.</p>
+            <button class="btn btn-secondary btn-full" style="color:var(--primary); border-color:var(--primary);"
+              onclick="showToast('Cleared local cache')">Clear Local Cache</button>
           </div>
         </div>
       </div>
@@ -404,8 +428,10 @@
           <span>Analytics</span>
         </button>
         <button class="nav-item" id="nav-profile">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:4px;">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+            stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:4px;">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
           </svg>
           <span>Profile</span>
         </button>
@@ -435,7 +461,9 @@
           <div class="form-group">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
               <label class="form-label" style="margin-bottom:0;">Food Type / Category</label>
-              <button class="btn-text" onclick="addCustomCategory()" style="color:var(--primary); font-size:12px; font-weight:800; border:none; background:none; cursor:pointer;">+ Add New</button>
+              <button class="btn-text" onclick="addCustomCategory()"
+                style="color:var(--primary); font-size:12px; font-weight:800; border:none; background:none; cursor:pointer;">+
+                Add New</button>
             </div>
             <div class="pill-selector" id="form-item-category-pills">
               <!-- Rendered by JS -->
@@ -497,16 +525,22 @@
             <p style="color:var(--text-muted); margin-bottom:32px;">Which table is this order for?</p>
 
             <div style="position:relative; display:flex; flex-direction:column; align-items:center; gap:20px;">
-              <input type="text" id="table-number-input" style="font-size:48px; font-weight:800; text-align:center; width:140px; height:100px; 
+              <input type="text" id="table-number-input"
+                style="font-size:48px; font-weight:800; text-align:center; width:140px; height:100px; 
                         border:2px solid var(--border-dark); border-radius:30px; color:var(--primary); outline:none; background:white; box-shadow:0 8px 24px rgba(0,0,0,0.04);"
                 placeholder="0" inputmode="numeric" maxlength="3">
-              
+
               <div style="width: 100%; max-width: 300px;">
-                <label style="display:block; font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px; text-align:center;">Select Waiter</label>
+                <label
+                  style="display:block; font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px; text-align:center;">Select
+                  Waiter</label>
                 <div class="waiter-selector-container">
                   <div style="display:flex; border-bottom:1px solid var(--border);">
-                    <input type="text" id="waiter-search-input" class="waiter-search-input" style="border-bottom:none;" placeholder="Search waiter..." autocomplete="off">
-                    <button id="btn-add-waiter" style="width:48px; height:48px; background:transparent; border:none; border-left:1px solid var(--border); color:var(--primary); cursor:pointer; font-size:20px; font-weight:800; display:flex; align-items:center; justify-content:center; transition:var(--transition);" title="Add New Waiter">+</button>
+                    <input type="text" id="waiter-search-input" class="waiter-search-input" style="border-bottom:none;"
+                      placeholder="Search waiter..." autocomplete="off">
+                    <button id="btn-add-waiter"
+                      style="width:48px; height:48px; background:transparent; border:none; border-left:1px solid var(--border); color:var(--primary); cursor:pointer; font-size:20px; font-weight:800; display:flex; align-items:center; justify-content:center; transition:var(--transition);"
+                      title="Add New Waiter">+</button>
                   </div>
                   <div id="waiter-options-list" class="waiter-options-list">
                     <!-- Waiters rendered here -->
@@ -515,9 +549,11 @@
                 <input type="hidden" id="selected-waiter-name">
               </div>
 
-              <button id="btn-proceed-table-arrow" style="width:64px; height:64px; border-radius:50%; background:var(--primary); color:white; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 8px 16px rgba(139, 34, 34, 0.2); transition:transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M5 12h14M12 5l7 7-7 7"/>
+              <button id="btn-proceed-table-arrow"
+                style="width:64px; height:64px; border-radius:50%; background:var(--primary); color:white; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 8px 16px rgba(139, 34, 34, 0.2); transition:transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M5 12h14M12 5l7 7-7 7" />
                 </svg>
               </button>
             </div>
@@ -585,17 +621,19 @@
     <div class="bill-modal">
       <h2 class="serif" style="margin-bottom:8px;">Bill Details</h2>
       <p style="color:var(--text-muted); font-size:13px; margin-bottom:24px;">Add extras and select payment method</p>
-      
+
       <div class="form-group" style="margin-bottom:16px;">
         <label class="form-label">Discount (%)</label>
-        <input type="number" id="bill-discount" class="form-input" placeholder="0" min="0" max="100" oninput="updateBillSummary()">
+        <input type="number" id="bill-discount" class="form-input" placeholder="0" min="0" max="100"
+          oninput="updateBillSummary()">
       </div>
-      
+
       <div class="form-group" style="margin-bottom:16px;">
         <label class="form-label">Service Tax (%)</label>
-        <input type="number" id="bill-tax" class="form-input" placeholder="5" value="5" min="0" oninput="updateBillSummary()">
+        <input type="number" id="bill-tax" class="form-input" placeholder="5" value="5" min="0"
+          oninput="updateBillSummary()">
       </div>
-      
+
       <div class="form-group" style="margin-bottom:24px;">
         <label class="form-label">Waiter Tip (₹)</label>
         <input type="number" id="bill-tip" class="form-input" placeholder="0" min="0" oninput="updateBillSummary()">
@@ -645,8 +683,10 @@
   <div id="custom-modal-overlay" class="custom-modal-overlay">
     <div class="custom-modal">
       <div id="custom-modal-icon" style="font-size:40px; margin-bottom:16px;">💬</div>
-      <h3 id="custom-modal-title" style="font-family:var(--font-serif); font-size:20px; margin-bottom:8px;">Confirmation</h3>
-      <p id="custom-modal-message" style="font-size:14px; color:var(--text-secondary); line-height:1.5; margin-bottom:24px;">Message</p>
+      <h3 id="custom-modal-title" style="font-family:var(--font-serif); font-size:20px; margin-bottom:8px;">Confirmation
+      </h3>
+      <p id="custom-modal-message"
+        style="font-size:14px; color:var(--text-secondary); line-height:1.5; margin-bottom:24px;">Message</p>
       <div style="display:flex; gap:12px;">
         <button id="custom-modal-cancel" class="btn btn-soft" style="flex:1;">Cancel</button>
         <button id="custom-modal-confirm" class="btn btn-primary" style="flex:2;">Confirm</button>
