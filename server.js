@@ -373,7 +373,8 @@ const transporter = nodemailer.createTransport({
   auth: {
     user: process.env.EMAIL_USER || "test@ethereal.email",
     pass: process.env.EMAIL_PASS || "password"
-  }
+  },
+  family: 4 // Force IPv4 to avoid ENETUNREACH errors on Render/IPv6 networks
 });
 
 app.post('/api/forgot-password', async (req, res) => {
