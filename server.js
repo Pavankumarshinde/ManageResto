@@ -411,11 +411,14 @@ app.post('/api/forgot-password', async (req, res) => {
       `
     };
 
-    // We don't await this so the user gets a fast response, 
-    // but we log any errors.
-    transporter.sendMail(mailOptions).catch(err => {
-      console.error("❌ Email failed to send:", err.message);
-    });
+    console.log(`📤 Attempting to send OTP email to: ${user.email}...`);
+
+    try {
+      const info = await transporter.sendMail(mailOptions);
+      console.log(`✅ Email sent successfully to ${user.email}. MessageId: ${info.messageId}`);
+    } catch (err) {
+      console.error(`❌ Email failed to send to ${user.email}:`, err.message);
+    }
 
     res.json({ success: true, message: 'OTP sent successfully' });
   } catch (error) {
