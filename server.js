@@ -365,13 +365,13 @@ app.post('/api/login', async (req, res) => {
 // --- Forgot Password Endpoints ---
 const nodemailer = require('nodemailer');
 
-// Mock Email Transporter (Use Ethereal for testing or real SMTP for production)
+// Real SMTP Transporter (Uses credentials from .env or Render/Vercel)
 const transporter = nodemailer.createTransport({
-  host: "smtp.ethereal.email",
-  port: 587,
+  host: process.env.EMAIL_HOST || "smtp.ethereal.email",
+  port: parseInt(process.env.EMAIL_PORT || "587"),
   auth: {
-    user: "test@ethereal.email", // Placeholder
-    pass: "password"           // Placeholder
+    user: process.env.EMAIL_USER || "test@ethereal.email",
+    pass: process.env.EMAIL_PASS || "password"
   }
 });
 
@@ -389,10 +389,31 @@ app.post('/api/forgot-password', async (req, res) => {
 
     await PasswordResetOTP.upsert({ identifier, otp, expiresAt }, { where: { identifier } });
 
-    console.log(`🔑 OTP for ${identifier}: ${otp}`); // Log to console for easy testing
+    console.log(`🔑 OTP for ${identifier}: ${otp}`);
 
-    // In a real app, you'd send this via email/SMS
-    // For now, we'll just return success and log it.
+    // Send Real Email
+    const mailOptions = {
+      from: `"ManageResto" <${process.env.EMAIL_USER}>`,
+      to: user.email,
+      subject: "Your OTP for Password Reset",
+      html: `
+        <div style="font-family: sans-serif; padding: 20px; text-align: center;">
+          <h2 style="color: #871f28;">ManageResto</h2>
+          <p>Your One-Time Password (OTP) to reset your password is:</p>
+          <div style="font-size: 32px; font-weight: bold; color: #1a1616; padding: 10px; border: 1px solid #ddd; display: inline-block;">
+            ${otp}
+          </div>
+          <p style="color: #6c757d; font-size: 14px; margin-top: 20px;">This OTP will expire in 10 minutes.</p>
+        </div>
+      `
+    };
+
+    // We don't await this so the user gets a fast response, 
+    // but we log any errors.
+    transporter.sendMail(mailOptions).catch(err => {
+      console.error("❌ Email failed to send:", err.message);
+    });
+
     res.json({ success: true, message: 'OTP sent successfully' });
   } catch (error) {
     console.error('Forgot Password Error:', error);
