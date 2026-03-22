@@ -1,2 +1,8 @@
 server.js
+remote_sync.js
+inspect_state.js
+test_*.js
+list_users.js
+.env
+database.json
 node_modules
