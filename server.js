@@ -363,20 +363,60 @@ app.post('/api/login', async (req, res) => {
 });
 
 // --- Forgot Password Endpoints ---
-const nodemailer = require('nodemailer');
+const https = require('https');
 
-// Real SMTP Transporter (Uses credentials from .env or Render/Vercel)
-console.log(`📡 Email Transporter v1.3: ${process.env.EMAIL_HOST ? 'REAL (' + process.env.EMAIL_HOST + ')' : 'MOCK (Ethereal)'}`);
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST || "smtp.ethereal.email",
-  port: parseInt(process.env.EMAIL_PORT || "465"), // Use 465 for SSL or 587 for STARTTLS
-  secure: (process.env.EMAIL_PORT === "465" || !process.env.EMAIL_PORT), // true for 465, false for other ports
-  auth: {
-    user: process.env.EMAIL_USER || "test@ethereal.email",
-    pass: process.env.EMAIL_PASS || "password"
-  },
-  family: 4 // Force IPv4 to avoid ENETUNREACH errors on Render/IPv6 networks
-});
+// Resend API Helper Function (No SMTP needed, works on Render)
+const sendResendEmail = (to, otp) => {
+  return new Promise((resolve, reject) => {
+    if (!process.env.RESEND_API_KEY) {
+      console.log(`📡 Resend API Key missing. Skipping email, OTP is: ${otp}`);
+      return resolve(true); 
+    }
+
+    const data = JSON.stringify({
+      from: 'ManageResto <onboarding@resend.dev>',
+      to: [to],
+      subject: 'Your OTP for Password Reset',
+      html: `
+        <div style="font-family: sans-serif; padding: 20px; text-align: center;">
+          <h2 style="color: #871f28;">ManageResto</h2>
+          <p>Your One-Time Password (OTP) to reset your password is:</p>
+          <div style="font-size: 32px; font-weight: bold; color: #1a1616; padding: 10px; border: 1px solid #ddd; display: inline-block;">
+            ${otp}
+          </div>
+          <p style="color: #6c757d; font-size: 14px; margin-top: 20px;">This OTP will expire in 10 minutes.</p>
+        </div>
+      `
+    });
+
+    const options = {
+      hostname: 'api.resend.com',
+      path: '/emails',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+        'Content-Length': data.length
+      }
+    };
+
+    const req = https.request(options, (res) => {
+      let responseBody = '';
+      res.on('data', (chunk) => responseBody += chunk);
+      res.on('end', () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          resolve(JSON.parse(responseBody));
+        } else {
+          reject(new Error(`Resend Error (${res.statusCode}): ${responseBody}`));
+        }
+      });
+    });
+
+    req.on('error', (err) => reject(err));
+    req.write(data);
+    req.end();
+  });
+};
 
 app.post('/api/forgot-password', async (req, res) => {
   try {
@@ -393,31 +433,13 @@ app.post('/api/forgot-password', async (req, res) => {
     await PasswordResetOTP.upsert({ identifier, otp, expiresAt }, { where: { identifier } });
 
     console.log(`🔑 OTP for ${identifier}: ${otp}`);
-
-    // Send Real Email
-    const mailOptions = {
-      from: `"ManageResto" <${process.env.EMAIL_USER}>`,
-      to: user.email,
-      subject: "Your OTP for Password Reset",
-      html: `
-        <div style="font-family: sans-serif; padding: 20px; text-align: center;">
-          <h2 style="color: #871f28;">ManageResto</h2>
-          <p>Your One-Time Password (OTP) to reset your password is:</p>
-          <div style="font-size: 32px; font-weight: bold; color: #1a1616; padding: 10px; border: 1px solid #ddd; display: inline-block;">
-            ${otp}
-          </div>
-          <p style="color: #6c757d; font-size: 14px; margin-top: 20px;">This OTP will expire in 10 minutes.</p>
-        </div>
-      `
-    };
-
-    console.log(`📤 Attempting to send OTP email to: ${user.email}...`);
+    console.log(`📤 Attempting to send OTP via Resend API to: ${user.email}...`);
 
     try {
-      const info = await transporter.sendMail(mailOptions);
-      console.log(`✅ Email sent successfully to ${user.email}. MessageId: ${info.messageId}`);
+      const result = await sendResendEmail(user.email, otp);
+      console.log(`✅ Email sent successfully via Resend. ID: ${result.id || 'N/A'}`);
     } catch (err) {
-      console.error(`❌ Email failed to send to ${user.email}:`, err.message);
+      console.error(`❌ Resend API failed for ${user.email}:`, err.message);
     }
 
     res.json({ success: true, message: 'OTP sent successfully' });
