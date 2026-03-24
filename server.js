@@ -285,35 +285,12 @@ io.on('connection', (socket) => {
   });
 });
 
+// Lightweight health check for Render port-scan
 app.get("/", (req, res) => {
-  res.send(`
-    <html>
-      <head>
-        <title>ManageResto Backend</title>
-        <link rel="icon" href="/favicon.ico" type="image/svg+xml">
-        <style>
-          body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: #f8f9fa; margin: 0; }
-          .icon { width: 120px; height: 120px; margin-bottom: 24px; }
-          h1 { color: #871f28; font-size: 24px; }
-          p { color: #6c757d; }
-          .status { color: #28a745; font-weight: bold; margin-top: 10px; }
-        </style>
-      </head>
-      <body>
-        <div class="icon">
-          <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-            <rect width="100" height="100" rx="20" fill="#871f28"/>
-            <path d="M30 30h40v10H30zM30 45h40v10H30zM30 60h40v10H30z" fill="white"/>
-            <circle cx="75" cy="25" r="10" fill="#ffc107"/>
-          </svg>
-        </div>
-        <h1>ManageResto Scaled Backend v1.1</h1>
-        <p>Relational DB + WebSockets Enabled + Lightweight Sync</p>
-        <div class="status">● System Scalable & Ready</div>
-      </body>
-    </html>
-  `);
+  res.status(200).send("ManageResto Backend Active");
 });
+
+app.get("/health", (req, res) => res.status(200).json({ status: 'ok' }));
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", version: "1.2-atomic-sync", socketReady: true });
@@ -634,6 +611,10 @@ app.get('/api/state', authenticateToken, async (req, res) => {
   }
 });
 
+// Global Sync Lock – prevents concurrent DB writes for the same user
+const saveLocks = new Map();
+
+// SSE Broadcast utility
 // Update State (Atomic update to RestoState)
 app.post('/api/state', authenticateToken, async (req, res) => {
   try {
@@ -646,22 +627,36 @@ app.post('/api/state', authenticateToken, async (req, res) => {
     }
 
     // Atomic update of the JSON fields
-    if (menu !== undefined) state.menu = menu;
-    if (orders !== undefined) state.orders = orders;
-    if (nextOrderId !== undefined) state.nextOrderId = nextOrderId;
-    if (nextMenuId !== undefined) state.nextMenuId = nextMenuId;
-    if (waiters !== undefined) state.waiters = waiters;
-    if (categories !== undefined) state.categories = categories;
+    const updates = {};
+    if (menu !== undefined) updates.menu = menu;
+    if (orders !== undefined) updates.orders = orders;
+    if (nextOrderId !== undefined) updates.nextOrderId = nextOrderId;
+    if (nextMenuId !== undefined) updates.nextMenuId = nextMenuId;
+    if (waiters !== undefined) updates.waiters = waiters;
+    if (categories !== undefined) updates.categories = categories;
 
-    await state.save();
+    // Use a lock to prevent concurrent saves for the same user
+    if (saveLocks.get(userId)) {
+      return res.status(429).json({ error: 'Update already in progress' });
+    }
+    saveLocks.set(userId, true);
+
+    try {
+      await state.update(updates);
+    } finally {
+      saveLocks.delete(userId);
+    }
+
+    // Convert to plan object before broadcasting to save memory/time
+    const stateObj = state.toJSON();
 
     // ✅ Broadcast to all devices via SSE
-    broadcastState(userId, state);
+    broadcastState(userId, stateObj);
 
     // ✅ Single source of truth event (Legacy sockets)
-    io.to(`restaurant:${userId}`).emit('stateUpdated', state);
+    io.to(`restaurant:${userId}`).emit('stateUpdated', stateObj);
 
-    res.json({ success: true, state });
+    res.json({ success: true, state: stateObj });
 
     // 🚀 Background Task: Sync back to relational DB for analytics/reliability
     // This happens asynchronously so the client doesn't wait

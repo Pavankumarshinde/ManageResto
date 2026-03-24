@@ -210,10 +210,9 @@ async function saveState() {
 }
 
 async function processSaveQueue() {
-  if (isProcessingQueue) return;
-  if (saveQueue.length === 0) return;
-
   isProcessingQueue = true;
+  lastSaveTime = Date.now(); // 🛡️ Mark as saving IMMEDIATELY to block incoming SSE/Polls
+  
   if (fetchController) fetchController.abort(); // Kill polling
 
   // Always take the LATEST state from the queue
@@ -241,9 +240,11 @@ async function processSaveQueue() {
     }
   } finally {
     isProcessingQueue = false;
-    // If more work added while we were saving, process it
+    lastSaveTime = Date.now(); // 🛡️ Update again after success/fail
+    
+    // If more work added while we were saving, process it after a short breather
     if (saveQueue.length > 0) {
-      setTimeout(processSaveQueue, 100);
+      setTimeout(processSaveQueue, 1000); // 1s throttle between saves
     }
   }
 }
