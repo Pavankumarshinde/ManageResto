@@ -94,7 +94,7 @@ const Waiter = sequelize.define('Waiter', {
 
 const Order = sequelize.define('Order', {
   frontendId: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
-  tableNumber: { type: DataTypes.STRING, allowNull: false },
+  tableNumber: { type: DataTypes.STRING, allowNull: true },
   waiterName: { type: DataTypes.STRING }, // Storing name for history
   paid: { type: DataTypes.BOOLEAN, defaultValue: false },
   totalAmount: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 },
@@ -704,6 +704,12 @@ async function patchSchema() {
     try { 
       await sequelize.query("ALTER TABLE `MenuItems` ADD COLUMN `available` TINYINT(1) DEFAULT 1;"); 
       console.log('✅ Added available to MenuItems'); 
+    } catch(e) { }
+
+    // Add 'tableNumber' to Orders (make it NULLable)
+    try { 
+      await sequelize.query("ALTER TABLE `Orders` MODIFY COLUMN `tableNumber` VARCHAR(255) NULL;"); 
+      console.log('✅ Modified tableNumber in Orders to be nullable'); 
     } catch(e) { }
 
   } catch (err) {

@@ -710,10 +710,10 @@ function renderOrderCard(order) {
 
   return `
       <div class="card order-card ${isCompleted ? 'completed' : ''}" id="order-${order.id}">
-      <div class="order-card-header" style="align-items: flex-start;">
+    <div class="order-card-header" style="align-items: flex-start;">
         <div class="order-header-left">
-          <h3>Table ${order.tableNumber}</h3>
-          <p>WAITER: ${order.waiterName || '--'}</p>
+          <h3>${order.tableNumber ? `Table ${order.tableNumber}` : 'TAKE AWAY'}</h3>
+          <p>WAITER: ${order.waiterName || 'None'}</p>
           <p>ORDER #${order.id} • ${time}</p>
         </div>
         ${paymentHtml}
@@ -887,7 +887,7 @@ async function printReceipt() {
     <div class="receipt-header">
       <h2 style="margin:0">${user ? user.restaurantName : 'ManageResto'}</h2>
       <p style="margin:5px 0">${user ? user.location : 'Restaurant Manager'}</p>
-      <p style="margin:0">Order #${order.id} | Table ${order.tableNumber}</p>
+      <p style="margin:0">Order #${order.id} | ${order.tableNumber ? `Table ${order.tableNumber}` : 'TAKE AWAY'}</p>
       <p style="margin:5px 0">Waiter: ${order.waiterName || 'N/A'}</p>
       <p style="margin:0">${new Date(order.createdAt).toLocaleString()}</p>
     </div>
@@ -919,15 +919,36 @@ async function printReceipt() {
 // NEW ORDER FLOW
 // ==========================================
 function openNewOrder() {
-  state.currentOrderFlow = { tableNumber: '', waiterName: '', items: {}, editingOrderId: null };
+  state.currentOrderFlow = { orderType: 'Dining', tableNumber: '', waiterName: '', items: {}, editingOrderId: null };
   document.getElementById('table-number-input').value = '';
   document.getElementById('waiter-search-input').value = '';
   document.getElementById('selected-waiter-name').value = '';
+  setOrderType('Dining');
   renderWaiters('');
   showScreen('screen-table');
 }
 
+window.setOrderType = function(type) {
+    state.currentOrderFlow.orderType = type;
+    const isDining = type === 'Dining';
+    
+    document.getElementById('tab-dining').classList.toggle('active', isDining);
+    document.getElementById('tab-takeaway').classList.toggle('active', !isDining);
+    
+    document.getElementById('dining-fields').classList.toggle('hidden', !isDining);
+    document.getElementById('takeaway-message').classList.toggle('hidden', isDining);
+}
+
 function proceedToTable() {
+  const isTakeAway = state.currentOrderFlow.orderType === 'Take Away';
+  
+  if (isTakeAway) {
+      state.currentOrderFlow.tableNumber = '';
+      state.currentOrderFlow.waiterName = '';
+      openItemSelection();
+      return;
+  }
+
   const tableVal = document.getElementById('table-number-input').value.trim();
   const waiterVal = document.getElementById('selected-waiter-name').value.trim();
 
@@ -935,7 +956,7 @@ function proceedToTable() {
   if (!waiterVal) { showToast('Enter waiter name'); return; }
 
   // Check if table already has an active (unpaid) order
-  const existingOrder = state.orders.find(o => o.tableNumber === tableVal && !o.paid);
+  const existingOrder = state.orders.find(o => o.tableNumber === tableVal && o.tableNumber !== '' && !o.paid);
   if (existingOrder) {
     const confirmAdd = confirm(`Table ${tableVal} already has an active order. Would you like to add items to it instead?`);
     if (confirmAdd) {
@@ -1024,7 +1045,8 @@ window.selectWaiter = function (name) {
 
 function openItemSelection() {
   if (!state.currentOrderFlow.itemNotes) state.currentOrderFlow.itemNotes = {};
-  document.getElementById('item-select-table-title').textContent = `Table ${state.currentOrderFlow.tableNumber}`;
+  const isTakeAway = state.currentOrderFlow.orderType === 'Take Away';
+  document.getElementById('item-select-table-title').textContent = isTakeAway ? 'Take Away' : `Table ${state.currentOrderFlow.tableNumber}`;
   document.getElementById('order-item-search').value = '';
   renderOrderCategories('All');
   renderOrderItems('', 'All');

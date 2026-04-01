@@ -2014,3 +2014,47 @@ textarea.form-input {
   color: white;
 }
 
+/* Segment Toggle Control */
+.order-type-tabs {
+  display: flex;
+  background: var(--primary-soft);
+  padding: 4px;
+  border-radius: 40px;
+  margin-bottom: 32px;
+  width: 100%;
+  max-width: 320px;
+  align-self: center;
+}
+
+.order-type-tab {
+  flex: 1;
+  padding: 12px 0;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--primary);
+  border-radius: 36px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  letter-spacing: 0.5px;
+}
+
+.order-type-tab.active {
+  background: var(--primary);
+  color: white;
+  box-shadow: 0 4px 12px rgba(135, 31, 40, 0.2);
+}
+
+.hidden {
+  display: none !important;
+}
+
+.paid-pill {
+    background: var(--success-soft);
+    color: var(--success);
+    font-size: 11px;
+    font-weight: 800;
+    padding: 4px 12px;
+    border-radius: 20px;
+    letter-spacing: 0.5px;
+}

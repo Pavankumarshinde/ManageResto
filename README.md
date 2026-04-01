@@ -1,6 +1,6 @@
 # ManageResto
 
-**ManageResto** is a comprehensive restaurant management application designed for waiters, managers, and owners to streamline daily operations.
+**ManageResto** is a restaurant management application designed for waiters, managers, and owners to streamline daily operations.
 
 **FrontEnd** - https://manageresto-sigma.vercel.app/
 **Backend** - https://manageresto.onrender.com/api/state
