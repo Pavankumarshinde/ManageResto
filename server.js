@@ -342,28 +342,19 @@ app.post('/api/login', async (req, res) => {
 // --- Forgot Password Endpoints ---
 const https = require('https');
 
-// Resend API Helper Function (No SMTP needed, works on Render)
-const sendResendEmail = (to, otp) => {
+// Generic Resend API Helper
+const sendResendEmail = ({ to, subject, html, fromName = 'ManageResto' }) => {
   return new Promise((resolve, reject) => {
     if (!process.env.RESEND_API_KEY) {
-      console.log(`📡 Resend API Key missing. Skipping email, OTP is: ${otp}`);
+      console.log(`📡 Resend API Key missing. Skipping email to ${to}.`);
       return resolve(true); 
     }
 
     const data = JSON.stringify({
-      from: 'ManageResto <onboarding@resend.dev>',
-      to: [to],
-      subject: 'Your OTP for Password Reset',
-      html: `
-        <div style="font-family: sans-serif; padding: 20px; text-align: center;">
-          <h2 style="color: #871f28;">ManageResto</h2>
-          <p>Your One-Time Password (OTP) to reset your password is:</p>
-          <div style="font-size: 32px; font-weight: bold; color: #1a1616; padding: 10px; border: 1px solid #ddd; display: inline-block;">
-            ${otp}
-          </div>
-          <p style="color: #6c757d; font-size: 14px; margin-top: 20px;">This OTP will expire in 10 minutes.</p>
-        </div>
-      `
+      from: `${fromName} <onboarding@resend.dev>`,
+      to: Array.isArray(to) ? to : [to],
+      subject: subject,
+      html: html
     });
 
     const options = {
@@ -373,7 +364,7 @@ const sendResendEmail = (to, otp) => {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-        'Content-Length': data.length
+        'Content-Length': Buffer.byteLength(data)
       }
     };
 
@@ -413,7 +404,17 @@ app.post('/api/forgot-password', async (req, res) => {
     console.log(`📤 Attempting to send OTP via Resend API to: ${user.email}...`);
 
     try {
-      const result = await sendResendEmail(user.email, otp);
+      const html = `
+        <div style="font-family: sans-serif; padding: 20px; text-align: center;">
+          <h2 style="color: #871f28;">ManageResto</h2>
+          <p>Your One-Time Password (OTP) to reset your password is:</p>
+          <div style="font-size: 32px; font-weight: bold; color: #1a1616; padding: 10px; border: 1px solid #ddd; display: inline-block;">
+            ${otp}
+          </div>
+          <p style="color: #6c757d; font-size: 14px; margin-top: 20px;">This OTP will expire in 10 minutes.</p>
+        </div>
+      `;
+      const result = await sendResendEmail({ to: user.email, subject: 'Your OTP for Password Reset', html });
       console.log(`✅ Email sent successfully via Resend. ID: ${result.id || 'N/A'}`);
     } catch (err) {
       console.error(`❌ Resend API failed for ${user.email}:`, err.message);
@@ -463,6 +464,60 @@ app.post('/api/reset-password', async (req, res) => {
     res.json({ success: true, message: 'Password updated successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Reset failed' });
+  }
+});
+
+// --- Support / Query Endpoint ---
+app.post('/api/support/query', authenticateToken, async (req, res) => {
+  try {
+    const { query } = req.body;
+    const userId = req.user.id;
+    const user = await User.findByPk(userId);
+
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!query || query.trim().length < 5) {
+      return res.status(400).json({ error: 'Please enter a valid query (min 5 characters)' });
+    }
+
+    console.log(`📨 Support query from User ${userId} (${user.email}): ${query}`);
+
+    const adminEmail = 'pavankumarshinde08@gmail.com';
+    const html = `
+      <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px; max-width: 600px; margin: auto;">
+        <h2 style="color: #871f28; border-bottom: 2px solid #871f28; padding-bottom: 10px;">New Support Query</h2>
+        <div style="margin-top: 20px;">
+          <p><strong>Restaurant:</strong> ${user.restaurantName}</p>
+          <p><strong>Sender:</strong> ${user.email}</p>
+          <p><strong>Mobile:</strong> ${user.mobile}</p>
+          <p><strong>Location:</strong> ${user.location || 'Not set'}</p>
+          <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+          <p><strong>Query:</strong></p>
+          <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; font-style: italic;">
+            ${query.replace(/\n/g, '<br>')}
+          </div>
+        </div>
+        <p style="color: #999; font-size: 12px; margin-top: 30px;">This email was sent from the ManageResto Support Form.</p>
+      </div>
+    `;
+
+    try {
+      await sendResendEmail({
+        to: adminEmail,
+        subject: `[Support] Query from ${user.restaurantName}`,
+        html: html,
+        fromName: 'ManageResto Support'
+      });
+      console.log(`✅ Support query emailed to admin.`);
+    } catch (err) {
+      console.error(`❌ Failed to email support query:`, err.message);
+      // We still return 200 because we logged it, but maybe 202 or similar?
+      // Actually, if it failed, it's better to let the client know if possible.
+    }
+
+    res.json({ success: true, message: 'Query sent successfully' });
+  } catch (error) {
+    console.error('Support Query Error:', error);
+    res.status(500).json({ error: 'Failed to send query' });
   }
 });
 

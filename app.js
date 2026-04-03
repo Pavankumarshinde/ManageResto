@@ -529,6 +529,53 @@ function updateProfileUI() {
   document.getElementById('profile-initials').textContent = initials;
 }
 
+// --- Help & Support Logic ---
+window.showHelpModal = function() {
+  document.getElementById('help-modal-overlay').style.display = 'flex';
+}
+window.closeHelpModal = function() {
+  document.getElementById('help-modal-overlay').style.display = 'none';
+}
+
+window.showQueryModal = function() {
+  document.getElementById('support-query-text').value = '';
+  document.getElementById('query-modal-overlay').style.display = 'flex';
+}
+window.closeQueryModal = function() {
+  document.getElementById('query-modal-overlay').style.display = 'none';
+}
+
+window.handleSendQuery = async function() {
+  const query = document.getElementById('support-query-text').value.trim();
+  if (!query) { showToast('Please enter your query'); return; }
+  if (query.length < 5) { showToast('Query too short (min 5 characters)'); return; }
+
+  const btn = document.getElementById('btn-send-support-query');
+  const originalText = btn.textContent;
+  
+  try {
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+    
+    const res = await fetch(`${API_BASE}/api/support/query`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ query })
+    });
+    
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to send query');
+    
+    showToast('Query sent successfully ✓');
+    closeQueryModal();
+  } catch (err) {
+    showToast(err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}
+
 // ===== HELPERS =====
 function formatPrice(p) { return `₹${Number(p).toFixed(2)}`; }
 

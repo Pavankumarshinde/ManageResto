@@ -389,6 +389,18 @@
             </div>
           </div>
 
+          <div class="card">
+            <h3 style="margin-bottom:16px; font-size:18px;">Help & Support</h3>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+              <button class="btn btn-soft" style="height:48px; border-radius:12px; font-size:13px;" onclick="showHelpModal()">
+                📖 How to use app
+              </button>
+              <button class="btn btn-soft" style="height:48px; border-radius:12px; font-size:13px;" onclick="showQueryModal()">
+                💬 Send your query
+              </button>
+            </div>
+          </div>
+
           <div class="card" style="border-color: #ffc7c7; background: #fff8f8;">
             <h3 style="color:var(--primary); margin-bottom:12px;">App Settings</h3>
             <p style="font-size:13px; color:var(--text-secondary); margin-bottom:16px;">System settings and data
@@ -688,6 +700,54 @@
       <div style="display:flex; gap:12px;">
         <button class="btn btn-secondary" style="flex:1;" onclick="closeBillModal()">Cancel</button>
         <button class="btn btn-primary" style="flex:2;" id="btn-confirm-print">Print Receipt</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HELP MODAL -->
+  <div id="help-modal-overlay" class="bill-modal-overlay">
+    <div class="bill-modal" style="max-width: 400px;">
+      <h2 class="serif" style="margin-bottom:16px;">How to use ManageResto</h2>
+      <div class="scroll-content" style="max-height: 350px; text-align: left; padding-right: 8px;">
+        <div class="help-step" style="margin-bottom: 16px; display: flex; gap: 12px;">
+          <div style="background: var(--primary-light); color: var(--primary); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0;">1</div>
+          <p style="font-size: 14px; line-height: 1.4;"><strong>Setup Menu:</strong> Go to 'Menu' tab and add your restaurant items with prices and categories.</p>
+        </div>
+        <div class="help-step" style="margin-bottom: 16px; display: flex; gap: 12px;">
+          <div style="background: var(--primary-light); color: var(--primary); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0;">2</div>
+          <p style="font-size: 14px; line-height: 1.4;"><strong>Take Orders:</strong> Click '+ New Order' in the 'Orders' tab. Select Dining or Takeaway, choose table/waiter, and add items.</p>
+        </div>
+        <div class="help-step" style="margin-bottom: 16px; display: flex; gap: 12px;">
+          <div style="background: var(--primary-light); color: var(--primary); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0;">3</div>
+          <p style="font-size: 14px; line-height: 1.4;"><strong>Manage Kitchen:</strong> Track active orders. Click on item status (Preparing → Prepared → Served) to keep staff updated.</p>
+        </div>
+        <div class="help-step" style="margin-bottom: 16px; display: flex; gap: 12px;">
+          <div style="background: var(--primary-light); color: var(--primary); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0;">4</div>
+          <p style="font-size: 14px; line-height: 1.4;"><strong>Billing & Pay:</strong> Once all items are 'Served', swipe the payment toggle. Print high-quality receipts for customers.</p>
+        </div>
+        <div class="help-step" style="margin-bottom: 16px; display: flex; gap: 12px;">
+          <div style="background: var(--primary-light); color: var(--primary); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0;">5</div>
+          <p style="font-size: 14px; line-height: 1.4;"><strong>Analytics:</strong> View your sales performance, top items, and waiter stats in the 'Analytics' tab.</p>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-full" style="margin-top: 20px;" onclick="closeHelpModal()">Got it!</button>
+    </div>
+  </div>
+
+  <!-- QUERY MODAL -->
+  <div id="query-modal-overlay" class="bill-modal-overlay">
+    <div class="bill-modal" style="max-width: 400px;">
+      <h2 class="serif" style="margin-bottom:8px;">Send your query</h2>
+      <p style="color:var(--text-muted); font-size:13px; margin-bottom:24px;">Tell us what you need help with.</p>
+      
+      <div class="form-group">
+        <label class="form-label">Your Message/Query</label>
+        <textarea id="support-query-text" class="form-input" style="height: 120px; resize: none; padding-top: 12px;" placeholder="Describe your issue or request here..."></textarea>
+      </div>
+
+      <div style="display:flex; gap:12px; margin-top: 24px;">
+        <button class="btn btn-secondary" style="flex:1;" onclick="closeQueryModal()">Cancel</button>
+        <button class="btn btn-primary" style="flex:2;" id="btn-send-support-query" onclick="handleSendQuery()">Send Query</button>
       </div>
     </div>
   </div>
