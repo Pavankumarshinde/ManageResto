@@ -850,8 +850,12 @@ async function togglePayment(orderId) {
 }
 
 // ==========================================
-// BILLING & PRINTING
+// BILLING & PRINTING (Enhanced)
 // ==========================================
+let billItems = []; // Working copy of items for the bill
+let billPrintWidth = 110; // mm
+let billPrintHeight = 0;  // 0 = auto
+
 window.selectPaymentMethod = function (method) {
   document.querySelectorAll('.payment-option').forEach(opt => {
     opt.classList.toggle('active', opt.textContent === method);
@@ -864,8 +868,12 @@ window.openBillModal = function (orderId) {
   const order = state.orders.find(o => o.id === orderId);
   if (!order) return;
 
-  const subtotal = getOrderTotal(order);
-  document.getElementById('bill-subtotal').textContent = formatPrice(subtotal);
+  // Create a working copy of items for editing
+  billItems = order.items.map(item => ({
+    menuItemId: item.menuItemId,
+    qty: item.qty,
+    note: item.note || ''
+  }));
 
   // Reset inputs
   document.getElementById('bill-discount').value = '';
@@ -873,6 +881,16 @@ window.openBillModal = function (orderId) {
   document.getElementById('bill-tip').value = '';
   selectPaymentMethod('Cash');
 
+  // Reset size
+  billPrintWidth = 110;
+  billPrintHeight = 0;
+  updateBillSizeDisplay();
+
+  // Hide add panel
+  const addPanel = document.getElementById('bill-add-item-panel');
+  if (addPanel) addPanel.style.display = 'none';
+
+  renderBillItems();
   updateBillSummary();
   document.getElementById('bill-modal-overlay').style.display = 'flex';
 
@@ -883,12 +901,149 @@ window.openBillModal = function (orderId) {
 window.closeBillModal = function () {
   document.getElementById('bill-modal-overlay').style.display = 'none';
   currentBillOrderId = null;
+  billItems = [];
+}
+
+// ---- Bill Items Rendering ----
+function renderBillItems() {
+  const container = document.getElementById('bill-items-list');
+  if (!container) return;
+
+  if (billItems.length === 0) {
+    container.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-muted); font-size:13px;">No items in bill. Add items using the + button above.</div>`;
+    return;
+  }
+
+  container.innerHTML = billItems.map((item, idx) => {
+    const mi = getMenuItemById(item.menuItemId);
+    if (!mi) return '';
+    return `
+      <div class="bill-item-row">
+        <div class="bill-item-info">
+          <span class="bill-item-name">${mi.name}</span>
+          <span class="bill-item-price">${formatPrice(mi.price * item.qty)}</span>
+        </div>
+        <div class="bill-item-controls">
+          <button class="bill-qty-btn" onclick="adjustBillItemQty(${idx}, -1)">−</button>
+          <span class="bill-qty-value">${item.qty}</span>
+          <button class="bill-qty-btn plus" onclick="adjustBillItemQty(${idx}, 1)">+</button>
+          <button class="bill-remove-btn" onclick="removeBillItem(${idx})" title="Remove item">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+window.adjustBillItemQty = function (idx, delta) {
+  if (idx < 0 || idx >= billItems.length) return;
+  billItems[idx].qty = Math.max(1, billItems[idx].qty + delta);
+  renderBillItems();
+  updateBillSummary();
+}
+
+window.removeBillItem = function (idx) {
+  if (idx < 0 || idx >= billItems.length) return;
+  billItems.splice(idx, 1);
+  renderBillItems();
+  updateBillSummary();
+}
+
+// ---- Add Item Panel ----
+window.toggleBillAddItemPanel = function () {
+  const panel = document.getElementById('bill-add-item-panel');
+  const isVisible = panel.style.display !== 'none';
+  panel.style.display = isVisible ? 'none' : 'block';
+  if (!isVisible) {
+    document.getElementById('bill-add-item-search').value = '';
+    filterBillMenuItems('');
+    document.getElementById('bill-add-item-search').focus();
+  }
+}
+
+window.filterBillMenuItems = function (query) {
+  const container = document.getElementById('bill-menu-items-list');
+  let items = state.menu.filter(m => m.available !== false);
+
+  if (query) {
+    items = items.filter(m => m.name.toLowerCase().includes(query.toLowerCase()));
+  }
+
+  if (items.length === 0) {
+    container.innerHTML = `<div style="text-align:center; padding:12px; color:var(--text-muted); font-size:12px;">No items found</div>`;
+    return;
+  }
+
+  container.innerHTML = items.slice(0, 15).map(m => {
+    // Check if already in bill
+    const existing = billItems.find(bi => bi.menuItemId === m.id);
+    return `
+      <div class="bill-menu-item ${existing ? 'already-added' : ''}" onclick="${existing ? '' : `addItemToBill(${m.id})`}">
+        <div>
+          <span class="bill-menu-item-name">${m.name}</span>
+          <span class="bill-menu-item-price">${formatPrice(m.price)}</span>
+        </div>
+        ${existing 
+          ? `<span class="bill-menu-item-badge added">Added (${existing.qty})</span>`
+          : `<span class="bill-menu-item-badge">+ Add</span>`
+        }
+      </div>
+    `;
+  }).join('');
+}
+
+window.addItemToBill = function (menuItemId) {
+  const existing = billItems.find(bi => bi.menuItemId === menuItemId);
+  if (existing) {
+    existing.qty += 1;
+  } else {
+    billItems.push({ menuItemId, qty: 1, note: '' });
+  }
+  renderBillItems();
+  updateBillSummary();
+  filterBillMenuItems(document.getElementById('bill-add-item-search').value);
+  showToast('Item added to bill ✓');
+}
+
+// ---- Bill Size Controls ----
+window.adjustBillSize = function (dimension, delta) {
+  if (dimension === 'width') {
+    billPrintWidth = Math.max(50, Math.min(200, billPrintWidth + delta));
+  } else {
+    if (billPrintHeight === 0) {
+      // First adjustment from auto
+      billPrintHeight = delta > 0 ? 150 : 0;
+    } else {
+      billPrintHeight = Math.max(0, Math.min(500, billPrintHeight + delta));
+    }
+  }
+  updateBillSizeDisplay();
+}
+
+window.resetBillSize = function () {
+  billPrintWidth = 110;
+  billPrintHeight = 0;
+  updateBillSizeDisplay();
+  showToast('Print size reset ✓');
+}
+
+function updateBillSizeDisplay() {
+  document.getElementById('bill-width-val').textContent = `${billPrintWidth}mm`;
+  document.getElementById('bill-height-val').textContent = billPrintHeight === 0 ? 'Auto' : `${billPrintHeight}mm`;
+}
+
+// ---- Bill Summary Calculation ----
+function getBillSubtotal() {
+  return billItems.reduce((sum, item) => {
+    const mi = getMenuItemById(item.menuItemId);
+    return sum + (mi ? mi.price * item.qty : 0);
+  }, 0);
 }
 
 window.updateBillSummary = function () {
-  if (!currentBillOrderId) return;
-  const order = state.orders.find(o => o.id === currentBillOrderId);
-  const subtotal = getOrderTotal(order);
+  const subtotal = getBillSubtotal();
+  document.getElementById('bill-subtotal').textContent = formatPrice(subtotal);
 
   const discountPerc = parseFloat(document.getElementById('bill-discount').value) || 0;
   const taxPerc = parseFloat(document.getElementById('bill-tax').value) || 0;
@@ -908,50 +1063,61 @@ async function printReceipt() {
   const order = state.orders.find(o => o.id === currentBillOrderId);
   if (!order) return;
 
+  if (billItems.length === 0) {
+    showToast('No items in bill to print');
+    return;
+  }
+
   const discountPerc = parseFloat(document.getElementById('bill-discount').value) || 0;
   const taxPerc = parseFloat(document.getElementById('bill-tax').value) || 0;
   const tipAmt = parseFloat(document.getElementById('bill-tip').value) || 0;
   const paymentMethod = document.getElementById('selected-payment-method').value;
 
-  const subtotal = getOrderTotal(order);
+  const subtotal = getBillSubtotal();
   const discountAmt = (subtotal * discountPerc) / 100;
   const taxAmt = ((subtotal - discountAmt) * taxPerc) / 100;
   const finalTotal = subtotal - discountAmt + taxAmt + tipAmt;
 
   const printArea = document.getElementById('receipt-print-area');
 
-    const itemsHtml = order.items.map(item => {
-      const mi = getMenuItemById(item.menuItemId);
-      return `
-        <div class="receipt-row">
-          <span>${item.qty} x ${mi ? mi.name : 'Unknown'}</span>
-          <span>${formatPrice((mi ? mi.price : 0) * item.qty)}</span>
-        </div>
-      `;
-    }).join('');
+  const itemsHtml = billItems.map(item => {
+    const mi = getMenuItemById(item.menuItemId);
+    return `
+      <div class="receipt-row">
+        <span>${item.qty} x ${mi ? mi.name : 'Unknown'}</span>
+        <span>${formatPrice((mi ? mi.price : 0) * item.qty)}</span>
+      </div>
+    `;
+  }).join('');
+
+  // Apply custom print dimensions via CSS variable
+  const widthStyle = `width: ${billPrintWidth}mm;`;
+  const heightStyle = billPrintHeight > 0 ? `min-height: ${billPrintHeight}mm;` : '';
 
   printArea.innerHTML = `
-    <div class="receipt-header">
-      <h2 style="margin:0">${user ? user.restaurantName : 'ManageResto'}</h2>
-      <p style="margin:5px 0">${user ? user.location : 'Restaurant Manager'}</p>
-      <p style="margin:0">Order #${order.id} | ${order.tableNumber ? `Table ${order.tableNumber}` : 'TAKE AWAY'}</p>
-      <p style="margin:5px 0">Waiter: ${order.waiterName || 'N/A'}</p>
-      <p style="margin:0">${new Date(order.createdAt).toLocaleString()}</p>
-    </div>
-    <div class="receipt-divider"></div>
-    ${itemsHtml}
-    <div class="receipt-divider"></div>
-    <div class="receipt-row"><span>Sub Total</span><span>${formatPrice(subtotal)}</span></div>
-    ${discountAmt > 0 ? `<div class="receipt-row"><span>Discount (${discountPerc}%)</span><span>-${formatPrice(discountAmt)}</span></div>` : ''}
-    <div class="receipt-row"><span>Tax (${taxPerc}%)</span><span>+${formatPrice(taxAmt)}</span></div>
-    ${tipAmt > 0 ? `<div class="receipt-row"><span>Tip</span><span>+${formatPrice(tipAmt)}</span></div>` : ''}
-    <div class="receipt-divider"></div>
-    <div class="receipt-row" style="font-weight:bold; font-size:16px;"><span>TOTAL</span><span>${formatPrice(finalTotal)}</span></div>
-    <div class="receipt-row" style="margin-top:10px;"><span>Paid By</span><span>${paymentMethod}</span></div>
-    <div class="receipt-divider"></div>
-    <div class="receipt-footer">
-      <p>Thank You For Supporting Local Business!</p>
-      <p>Visit Again Soon!</p>
+    <div class="receipt-container" style="${widthStyle} ${heightStyle}">
+      <div class="receipt-header">
+        <h2 style="margin:0">${user ? user.restaurantName : 'ManageResto'}</h2>
+        <p style="margin:5px 0">${user ? user.location : 'Restaurant Manager'}</p>
+        <p style="margin:0">Order #${order.id} | ${order.tableNumber ? `Table ${order.tableNumber}` : 'TAKE AWAY'}</p>
+        <p style="margin:5px 0">Waiter: ${order.waiterName || 'N/A'}</p>
+        <p style="margin:0">${new Date(order.createdAt).toLocaleString()}</p>
+      </div>
+      <div class="receipt-divider"></div>
+      ${itemsHtml}
+      <div class="receipt-divider"></div>
+      <div class="receipt-row"><span>Sub Total</span><span>${formatPrice(subtotal)}</span></div>
+      ${discountAmt > 0 ? `<div class="receipt-row"><span>Discount (${discountPerc}%)</span><span>-${formatPrice(discountAmt)}</span></div>` : ''}
+      <div class="receipt-row"><span>Tax (${taxPerc}%)</span><span>+${formatPrice(taxAmt)}</span></div>
+      ${tipAmt > 0 ? `<div class="receipt-row"><span>Tip</span><span>+${formatPrice(tipAmt)}</span></div>` : ''}
+      <div class="receipt-divider"></div>
+      <div class="receipt-row" style="font-weight:bold; font-size:16px;"><span>TOTAL</span><span>${formatPrice(finalTotal)}</span></div>
+      <div class="receipt-row" style="margin-top:10px;"><span>Paid By</span><span>${paymentMethod}</span></div>
+      <div class="receipt-divider"></div>
+      <div class="receipt-footer">
+        <p>Thank You For Supporting Local Business!</p>
+        <p>Visit Again Soon!</p>
+      </div>
     </div>
   `;
 

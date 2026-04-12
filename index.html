@@ -643,29 +643,85 @@
 
   <!-- SCREEN: BILL DETAILS MODAL -->
   <div id="bill-modal-overlay" class="bill-modal-overlay">
-    <div class="bill-modal">
-      <h2 class="serif" style="margin-bottom:8px;">Bill Details</h2>
-      <p style="color:var(--text-muted); font-size:13px; margin-bottom:24px;">Add extras and select payment method</p>
+    <div class="bill-modal" style="max-width:500px;">
+      <h2 class="serif" style="margin-bottom:4px;">Bill Details</h2>
+      <p style="color:var(--text-muted); font-size:13px; margin-bottom:20px;">Edit items, adjust bill size & select payment</p>
 
-      <div class="form-group" style="margin-bottom:16px;">
-        <label class="form-label">Discount (%)</label>
-        <input type="number" id="bill-discount" class="form-input" placeholder="0" min="0" max="100"
-          oninput="updateBillSummary()">
+      <!-- ===== EDITABLE ITEMS SECTION ===== -->
+      <div class="bill-section">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <label class="form-label" style="margin-bottom:0; font-size:13px;">Order Items</label>
+          <button class="btn-bill-add-item" onclick="toggleBillAddItemPanel()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Item
+          </button>
+        </div>
+
+        <!-- Add Item Panel (hidden by default) -->
+        <div id="bill-add-item-panel" class="bill-add-item-panel" style="display:none;">
+          <div class="bill-add-search-wrap">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
+            <input type="text" id="bill-add-item-search" class="bill-add-search" placeholder="Search menu to add..." oninput="filterBillMenuItems(this.value)">
+          </div>
+          <div id="bill-menu-items-list" class="bill-menu-items-list">
+            <!-- Menu items rendered by JS -->
+          </div>
+        </div>
+
+        <!-- Current Items List -->
+        <div id="bill-items-list" class="bill-items-list">
+          <!-- Items rendered by JS -->
+        </div>
       </div>
 
-      <div class="form-group" style="margin-bottom:16px;">
-        <label class="form-label">Service Tax (%)</label>
-        <input type="number" id="bill-tax" class="form-input" placeholder="5" value="5" min="0"
-          oninput="updateBillSummary()">
+      <!-- ===== BILL SIZE CONTROLS ===== -->
+      <div class="bill-section">
+        <label class="form-label" style="font-size:13px; margin-bottom:12px;">🖨️ Print Size</label>
+        <div class="bill-size-controls">
+          <div class="bill-size-row">
+            <span class="bill-size-label">Width</span>
+            <div class="bill-size-adjuster">
+              <button class="bill-size-btn" onclick="adjustBillSize('width', -10)">−</button>
+              <span id="bill-width-val" class="bill-size-value">110mm</span>
+              <button class="bill-size-btn" onclick="adjustBillSize('width', 10)">+</button>
+            </div>
+          </div>
+          <div class="bill-size-row">
+            <span class="bill-size-label">Height</span>
+            <div class="bill-size-adjuster">
+              <button class="bill-size-btn" onclick="adjustBillSize('height', -10)">−</button>
+              <span id="bill-height-val" class="bill-size-value">Auto</span>
+              <button class="bill-size-btn" onclick="adjustBillSize('height', 10)">+</button>
+            </div>
+          </div>
+          <button class="btn-bill-reset-size" onclick="resetBillSize()">Reset to Default</button>
+        </div>
       </div>
 
-      <div class="form-group" style="margin-bottom:24px;">
-        <label class="form-label">Waiter Tip (₹)</label>
-        <input type="number" id="bill-tip" class="form-input" placeholder="0" min="0" oninput="updateBillSummary()">
+      <!-- ===== DISCOUNT / TAX / TIP ===== -->
+      <div class="bill-section">
+        <div class="bill-extras-grid">
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label" style="font-size:12px;">Discount (%)</label>
+            <input type="number" id="bill-discount" class="form-input" placeholder="0" min="0" max="100"
+              oninput="updateBillSummary()" style="padding:12px;">
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label" style="font-size:12px;">Tax (%)</label>
+            <input type="number" id="bill-tax" class="form-input" placeholder="5" value="5" min="0"
+              oninput="updateBillSummary()" style="padding:12px;">
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label" style="font-size:12px;">Tip (₹)</label>
+            <input type="number" id="bill-tip" class="form-input" placeholder="0" min="0"
+              oninput="updateBillSummary()" style="padding:12px;">
+          </div>
+        </div>
       </div>
 
-      <div class="form-group">
-        <label class="form-label">Payment Method</label>
+      <!-- ===== PAYMENT METHOD ===== -->
+      <div class="form-group" style="margin-bottom:20px;">
+        <label class="form-label" style="font-size:13px;">Payment Method</label>
         <div class="payment-grid" id="payment-methods">
           <div class="payment-option active" onclick="selectPaymentMethod('Cash')">Cash</div>
           <div class="payment-option" onclick="selectPaymentMethod('Card')">Card</div>
@@ -674,7 +730,8 @@
         <input type="hidden" id="selected-payment-method" value="Cash">
       </div>
 
-      <div style="background:var(--primary-light); padding:20px; border-radius:var(--radius-md); margin-bottom:24px;">
+      <!-- ===== BILL SUMMARY ===== -->
+      <div style="background:var(--primary-light); padding:20px; border-radius:var(--radius-md); margin-bottom:20px;">
         <div class="bill-summary-row">
           <span>Sub Total</span>
           <span id="bill-subtotal">₹0.00</span>

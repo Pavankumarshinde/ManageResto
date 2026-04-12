@@ -1781,17 +1781,24 @@ textarea.form-input {
   }
   #receipt-print-area {
     display: block !important;
-    position: static;
-    margin: 10mm auto;
-    width: 110mm;
-    max-width: 100%;
-    padding: 10mm;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
     background: white;
     color: black;
     font-family: 'Courier New', Courier, monospace;
     font-size: 13px;
     border: none;
   }
+  
+  .receipt-container {
+    margin: 0 auto;
+    padding: 0;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+
   .receipt-header { text-align: center; margin-bottom: 15px; font-weight: bold; }
   .receipt-divider { border-top: 1px dashed #000; margin: 10px 0; }
   .receipt-row { display: flex; justify-content: space-between; margin-bottom: 4px; gap: 10px; }
@@ -1799,8 +1806,274 @@ textarea.form-input {
   .receipt-footer { text-align: center; margin-top: 20px; font-size: 11px; }
   
   @page {
-    margin: 5mm;
+    margin: 0;
   }
+}
+
+/* ===== ENHANCED BILL MODAL STYLES ===== */
+.bill-section {
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px dashed var(--border);
+}
+
+/* Items List */
+.bill-items-list {
+  max-height: 180px;
+  overflow-y: auto;
+  padding-right: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bill-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-app);
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border-soft);
+}
+
+.bill-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bill-item-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.bill-item-price {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+/* Quantity & Remove Controls */
+.bill-item-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bill-qty-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: none;
+  background: white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.bill-qty-btn.plus {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.bill-qty-value {
+  font-size: 14px;
+  font-weight: 800;
+  min-width: 16px;
+  text-align: center;
+}
+
+.bill-remove-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: none;
+  background: #ff52521a;
+  color: #ff5252;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin-left: 4px;
+}
+
+/* Add Item Panel */
+.btn-bill-add-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  border: none;
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.bill-add-item-panel {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-md);
+}
+
+.bill-add-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-input);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  color: var(--text-muted);
+}
+
+.bill-add-search {
+  flex: 1;
+  border: none;
+  background: none;
+  outline: none;
+  font-size: 13px;
+  font-family: var(--font-sans);
+}
+
+.bill-menu-items-list {
+  max-height: 150px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bill-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--bg-app);
+}
+
+.bill-menu-item:not(.already-added):hover {
+  background: var(--primary-soft);
+}
+
+.bill-menu-item.already-added {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.bill-menu-item-name {
+  font-size: 13px;
+  font-weight: 700;
+  display: block;
+}
+
+.bill-menu-item-price {
+  font-size: 12px;
+  color: var(--primary);
+  font-weight: 800;
+}
+
+.bill-menu-item-badge {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 4px 8px;
+  border-radius: 12px;
+  background: white;
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.bill-menu-item-badge.added {
+  background: var(--success-soft);
+  color: var(--success);
+  box-shadow: none;
+}
+
+/* Bill Size Controls */
+.bill-size-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--bg-app);
+  padding: 12px;
+  border-radius: 12px;
+}
+
+.bill-size-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.bill-size-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.bill-size-adjuster {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: white;
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.bill-size-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: none;
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.bill-size-value {
+  font-size: 13px;
+  font-weight: 800;
+  min-width: 48px;
+  text-align: center;
+  color: var(--primary);
+}
+
+.btn-bill-reset-size {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px;
+  text-decoration: underline;
+  align-self: center;
+}
+
+.bill-extras-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
 }
 
 /* ===== ENHANCED ANALYTICS ===== */
