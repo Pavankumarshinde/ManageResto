@@ -356,6 +356,7 @@ window.handleSignup = async function () {
   const email = document.getElementById('signup-email').value.trim();
   const mobile = document.getElementById('signup-mobile').value.trim();
   const location = document.getElementById('signup-location').value.trim();
+  const gstNumber = document.getElementById('signup-gst').value.trim();
   const password = document.getElementById('signup-password').value;
   const confirm = document.getElementById('signup-confirm-password').value;
 
@@ -371,7 +372,7 @@ window.handleSignup = async function () {
     const res = await fetch(signupUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ restaurantName, email, mobile, location, password })
+      body: JSON.stringify({ restaurantName, email, mobile, location, gstNumber, password })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Signup failed');
@@ -524,10 +525,93 @@ function updateProfileUI() {
   document.getElementById('profile-location').textContent = user.location || 'Location not set';
   document.getElementById('profile-email').textContent = user.email;
   document.getElementById('profile-mobile').textContent = user.mobile;
+  
+  const gstEl = document.getElementById('profile-gst');
+  if (gstEl) gstEl.textContent = user.gstNumber || 'Not Provided';
 
   const initials = user.restaurantName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
   document.getElementById('profile-initials').textContent = initials;
 }
+
+// --- Profile Edit Logic ---
+window.requestProfileEdit = async function() {
+  try {
+    showLoading('Sending verification code...');
+    const res = await fetch(`${API_BASE}/api/profile/request-edit-otp`, {
+      method: 'POST',
+      headers: authHeaders()
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to request OTP');
+    
+    showToast('OTP sent to your email');
+    document.getElementById('profile-otp-modal-overlay').style.display = 'flex';
+  } catch(err) {
+    showToast(err.message);
+  } finally {
+    hideLoading();
+  }
+}
+
+window.closeProfileOTPModal = function() {
+  document.getElementById('profile-otp-modal-overlay').style.display = 'none';
+  document.getElementById('profile-edit-otp').value = '';
+}
+
+window.verifyProfileEditOTP = function() {
+  const otp = document.getElementById('profile-edit-otp').value.trim();
+  if (!otp || otp.length < 6) { showToast('Enter 6-digit OTP'); return; }
+  
+  document.getElementById('edit-profile-otp-token').value = otp;
+  document.getElementById('profile-otp-modal-overlay').style.display = 'none';
+  
+  // Pre-fill
+  document.getElementById('edit-profile-name').value = user.restaurantName || '';
+  document.getElementById('edit-profile-mobile').value = user.mobile || '';
+  document.getElementById('edit-profile-location').value = user.location || '';
+  document.getElementById('edit-profile-gst').value = user.gstNumber || '';
+  
+  document.getElementById('profile-edit-modal-overlay').style.display = 'flex';
+}
+
+window.closeProfileEditModal = function() {
+  document.getElementById('profile-edit-modal-overlay').style.display = 'none';
+  document.getElementById('profile-edit-otp').value = '';
+}
+
+window.submitProfileEdit = async function() {
+  const restaurantName = document.getElementById('edit-profile-name').value.trim();
+  const mobile = document.getElementById('edit-profile-mobile').value.trim();
+  const location = document.getElementById('edit-profile-location').value.trim();
+  const gstNumber = document.getElementById('edit-profile-gst').value.trim();
+  const otp = document.getElementById('edit-profile-otp-token').value;
+
+  if (!restaurantName || !mobile) { showToast('Name and mobile required'); return; }
+
+  try {
+    showLoading('Updating profile...');
+    const res = await fetch(`${API_BASE}/api/profile/update`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ otp, restaurantName, mobile, location, gstNumber })
+    });
+    
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Update failed');
+
+    user = data.user;
+    localStorage.setItem('user', JSON.stringify(user));
+    
+    showToast('Profile updated ✓');
+    updateProfileUI();
+    closeProfileEditModal();
+  } catch (err) {
+    showToast(err.message);
+  } finally {
+    hideLoading();
+  }
+}
+
 
 // --- Help & Support Logic ---
 window.showHelpModal = function() {
@@ -1099,6 +1183,7 @@ async function printReceipt() {
       <div class="receipt-header">
         <h2 style="margin:0">${user ? user.restaurantName : 'ManageResto'}</h2>
         <p style="margin:5px 0">${user ? user.location : 'Restaurant Manager'}</p>
+        ${user && user.gstNumber ? `<p style="margin:5px 0">GST No: ${user.gstNumber.toUpperCase()}</p>` : ''}
         <p style="margin:0">Order #${order.id} | ${order.tableNumber ? `Table ${order.tableNumber}` : 'TAKE AWAY'}</p>
         <p style="margin:5px 0">Waiter: ${order.waiterName || 'N/A'}</p>
         <p style="margin:0">${new Date(order.createdAt).toLocaleString()}</p>

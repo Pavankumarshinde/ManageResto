@@ -93,7 +93,11 @@
             <input type="text" id="signup-location" class="form-input" placeholder="City, Area">
           </div>
           <div class="form-group">
-            <label class="form-label">Create Password</label>
+            <label class="form-label">GST Number (Optional)</label>
+            <input type="text" id="signup-gst" class="form-input" placeholder="Enter GST Number" style="text-transform: uppercase;">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Password</label>
             <input type="password" id="signup-password" class="form-input" placeholder="Enter Password">
           </div>
           <div class="form-group">
@@ -367,7 +371,13 @@
         </div>
 
         <div class="scroll-content scroll-content-pb-nav">
-          <div class="card profile-hero">
+          <div class="card profile-hero" style="position:relative;">
+            <button class="btn-text" onclick="requestProfileEdit()" style="position:absolute; top:20px; right:20px; background:white; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:var(--shadow-sm); border:none; cursor:pointer;" title="Edit Profile">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg>
+            </button>
             <div class="profile-avatar">
               <span id="profile-initials">MR</span>
             </div>
@@ -385,6 +395,10 @@
               <div class="info-item">
                 <label>Mobile</label>
                 <p id="profile-mobile">---</p>
+              </div>
+              <div class="info-item" style="grid-column: span 2;">
+                <label>GST Number</label>
+                <p id="profile-gst">Not Provided</p>
               </div>
             </div>
           </div>
@@ -761,50 +775,93 @@
     </div>
   </div>
 
-  <!-- HELP MODAL -->
+  <!-- SCREEN: HELP / GUIDE MODAL (Existing) -->
   <div id="help-modal-overlay" class="bill-modal-overlay">
-    <div class="bill-modal" style="max-width: 400px;">
-      <h2 class="serif" style="margin-bottom:16px;">How to use ManageResto</h2>
-      <div class="scroll-content" style="max-height: 350px; text-align: left; padding-right: 8px;">
-        <div class="help-step" style="margin-bottom: 16px; display: flex; gap: 12px;">
-          <div style="background: var(--primary-light); color: var(--primary); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0;">1</div>
-          <p style="font-size: 14px; line-height: 1.4;"><strong>Setup Menu:</strong> Go to 'Menu' tab and add your restaurant items with prices and categories.</p>
-        </div>
-        <div class="help-step" style="margin-bottom: 16px; display: flex; gap: 12px;">
-          <div style="background: var(--primary-light); color: var(--primary); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0;">2</div>
-          <p style="font-size: 14px; line-height: 1.4;"><strong>Take Orders:</strong> Click '+ New Order' in the 'Orders' tab. Select Dining or Takeaway, choose table/waiter, and add items.</p>
-        </div>
-        <div class="help-step" style="margin-bottom: 16px; display: flex; gap: 12px;">
-          <div style="background: var(--primary-light); color: var(--primary); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0;">3</div>
-          <p style="font-size: 14px; line-height: 1.4;"><strong>Manage Kitchen:</strong> Track active orders. Click on item status (Preparing → Prepared → Served) to keep staff updated.</p>
-        </div>
-        <div class="help-step" style="margin-bottom: 16px; display: flex; gap: 12px;">
-          <div style="background: var(--primary-light); color: var(--primary); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0;">4</div>
-          <p style="font-size: 14px; line-height: 1.4;"><strong>Billing & Pay:</strong> Once all items are 'Served', swipe the payment toggle. Print high-quality receipts for customers.</p>
-        </div>
-        <div class="help-step" style="margin-bottom: 16px; display: flex; gap: 12px;">
-          <div style="background: var(--primary-light); color: var(--primary); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0;">5</div>
-          <p style="font-size: 14px; line-height: 1.4;"><strong>Analytics:</strong> View your sales performance, top items, and waiter stats in the 'Analytics' tab.</p>
-        </div>
+    <div class="bill-modal" style="text-align:center;">
+      <h2 class="serif" style="margin-bottom:16px;">How To Use ManageResto</h2>
+      <div style="text-align:left; font-size:14px; margin-bottom:24px; color:var(--text-secondary); line-height:1.6;">
+        <p><strong>1. Categories & Menu</strong><br>Go to the Menu tab to add your food categories (e.g., Starters, Main Course) and then add specific dishes under them.</p>
+        <p style="margin-top:12px;"><strong>2. Taking Orders</strong><br>Go to the Orders tab, click the big <strong>+ Create Order</strong> button. Select your items, adjust quantities, and place the order.</p>
+        <p style="margin-top:12px;"><strong>3. Waiters & Tables</strong><br>When creating an order, you can optionally assign it to a table number and a specific waiter. Manage waiters in the Orders screen footer.</p>
+        <p style="margin-top:12px;"><strong>4. Billing</strong><br>On any active order, select "Bill / Print". You can add tax/discounts/tips before printing the final receipt.</p>
+        <p style="margin-top:12px;"><strong>5. Analytics</strong><br>The Analytics tab shows your daily/monthly sales, top items, and waiter performance metrics.</p>
       </div>
-      <button class="btn btn-primary btn-full" style="margin-top: 20px;" onclick="closeHelpModal()">Got it!</button>
+      <button class="btn btn-secondary btn-full" onclick="closeHelpModal()">Got it!</button>
     </div>
   </div>
 
-  <!-- QUERY MODAL -->
+  <!-- SCREEN: QUERY MODAL (Existing) -->
   <div id="query-modal-overlay" class="bill-modal-overlay">
-    <div class="bill-modal" style="max-width: 400px;">
-      <h2 class="serif" style="margin-bottom:8px;">Send your query</h2>
-      <p style="color:var(--text-muted); font-size:13px; margin-bottom:24px;">Tell us what you need help with.</p>
+    <div class="bill-modal">
+      <h2 class="serif" style="margin-bottom:8px;">Send a Query</h2>
+      <p style="color:var(--text-muted); font-size:13px; margin-bottom:20px;">Describe any issue you face or feature you need. Our team will get back to you.</p>
       
       <div class="form-group">
-        <label class="form-label">Your Message/Query</label>
-        <textarea id="support-query-text" class="form-input" style="height: 120px; resize: none; padding-top: 12px;" placeholder="Describe your issue or request here..."></textarea>
+        <label class="form-label">Your Message</label>
+        <textarea id="support-query-text" class="form-input" rows="4" placeholder="I need help with..."></textarea>
       </div>
 
-      <div style="display:flex; gap:12px; margin-top: 24px;">
+      <div style="display:flex; gap:12px;">
         <button class="btn btn-secondary" style="flex:1;" onclick="closeQueryModal()">Cancel</button>
-        <button class="btn btn-primary" style="flex:2;" id="btn-send-support-query" onclick="handleSendQuery()">Send Query</button>
+        <button class="btn btn-primary" style="flex:2;" onclick="submitSupportQuery()">Send Message</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN: PROFILE OTP VERIFICATION MODAL -->
+  <div id="profile-otp-modal-overlay" class="bill-modal-overlay">
+    <div class="bill-modal" style="text-align:center;">
+      <h2 class="serif" style="margin-bottom:8px;">Security Verification</h2>
+      <p style="color:var(--text-muted); font-size:13px; margin-bottom:24px;">An OTP has been sent to your registered email. Enter it below to unlock profile editing.</p>
+      
+      <div class="form-group">
+        <label class="form-label">6-Digit OTP</label>
+        <input type="text" id="profile-edit-otp" class="form-input" placeholder="000000" style="text-align:center; font-size:24px; letter-spacing:4px; font-weight:800;" maxlength="6">
+      </div>
+
+      <div style="display:flex; gap:12px; margin-top:24px;">
+        <button class="btn btn-secondary" style="flex:1;" onclick="closeProfileOTPModal()">Cancel</button>
+        <button class="btn btn-primary" style="flex:2;" onclick="verifyProfileEditOTP()">Verify & Edit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN: EDIT PROFILE MODAL -->
+  <div id="profile-edit-modal-overlay" class="bill-modal-overlay">
+    <div class="bill-modal" style="max-width:500px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <div>
+          <h2 class="serif" style="margin-bottom:4px;">Edit Profile</h2>
+          <p style="color:var(--text-muted); font-size:13px;">Update your restaurant information.</p>
+        </div>
+        <button class="btn-text" onclick="closeProfileEditModal()" style="font-size:24px; color:var(--text-muted);">&times;</button>
+      </div>
+      
+      <input type="hidden" id="edit-profile-otp-token">
+      
+      <div class="form-group">
+        <label class="form-label">Restaurant Name</label>
+        <input type="text" id="edit-profile-name" class="form-input" placeholder="Restaurant Name">
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Mobile Number</label>
+        <input type="tel" id="edit-profile-mobile" class="form-input" placeholder="Phone Number">
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Location</label>
+        <input type="text" id="edit-profile-location" class="form-input" placeholder="City, Area">
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">GST Number (Optional)</label>
+        <input type="text" id="edit-profile-gst" class="form-input" placeholder="GST Number" style="text-transform: uppercase;">
+      </div>
+
+      <div style="display:flex; gap:12px; margin-top:24px;">
+        <button class="btn btn-secondary" style="flex:1;" onclick="closeProfileEditModal()">Discard</button>
+        <button class="btn btn-primary" style="flex:2;" onclick="submitProfileEdit()">Save Changes</button>
       </div>
     </div>
   </div>

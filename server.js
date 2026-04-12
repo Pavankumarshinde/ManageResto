@@ -66,6 +66,7 @@ const User = sequelize.define('User', {
   mobile: { type: DataTypes.STRING, unique: true, allowNull: false },
   location: { type: DataTypes.STRING },
   password: { type: DataTypes.STRING, allowNull: false },
+  gstNumber: { type: DataTypes.STRING },
   migrated: { type: DataTypes.BOOLEAN, defaultValue: false }
 });
 
@@ -301,12 +302,12 @@ app.get("/favicon.ico", (req, res) => res.sendFile(path.join(__dirname, "backend
 // --- Auth Endpoints ---
 app.post('/api/signup', async (req, res) => {
   try {
-    const { restaurantName, email, mobile, location, password } = req.body;
+    const { restaurantName, email, mobile, location, password, gstNumber } = req.body;
     const existing = await User.findOne({ where: { [Sequelize.Op.or]: [{ email }, { mobile }] } });
     if (existing) return res.status(400).json({ error: 'User already exists' });
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = await User.create({ restaurantName, email, mobile, location, password: hashedPassword });
+    const user = await User.create({ restaurantName, email, mobile, location, password: hashedPassword, gstNumber });
 
     // Seed initial categories
     const { CATEGORIES } = require('./data.js');
@@ -315,7 +316,7 @@ app.post('/api/signup', async (req, res) => {
     }
 
     const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET);
-    res.json({ token, user: { id: user.id, restaurantName, email, mobile, location } });
+    res.json({ token, user: { id: user.id, restaurantName, email, mobile, location, gstNumber } });
   } catch (error) {
     res.status(500).json({ error: 'Signup failed' });
   }
@@ -333,7 +334,7 @@ app.post('/api/login', async (req, res) => {
     await migrateUser(user.id);
 
     const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET);
-    res.json({ token, user: { id: user.id, restaurantName: user.restaurantName, email: user.email, mobile: user.mobile, location: user.location } });
+    res.json({ token, user: { id: user.id, restaurantName: user.restaurantName, email: user.email, mobile: user.mobile, location: user.location, gstNumber: user.gstNumber } });
   } catch (error) {
     res.status(500).json({ error: 'Login failed' });
   }
@@ -477,6 +478,64 @@ const authenticateToken = (req, res, next) => {
     next();
   });
 };
+
+// --- Profile Endpoints ---
+app.post('/api/profile/request-edit-otp', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60000); // 10 mins
+
+    await PasswordResetOTP.upsert({ identifier: user.email, otp, expiresAt }, { where: { identifier: user.email } });
+
+    console.log(`🔑 Edit Profile OTP for ${user.email}: ${otp}`);
+
+    const html = `
+      <div style="font-family: sans-serif; padding: 20px; text-align: center;">
+        <h2 style="color: #871f28;">ManageResto</h2>
+        <p>Your One-Time Password (OTP) to edit your profile is:</p>
+        <div style="font-size: 32px; font-weight: bold; color: #1a1616; padding: 10px; border: 1px solid #ddd; display: inline-block;">
+          ${otp}
+        </div>
+        <p style="color: #6c757d; font-size: 14px; margin-top: 20px;">This OTP will expire in 10 minutes.</p>
+      </div>
+    `;
+    
+    await sendResendEmail({ to: user.email, subject: 'Profile Edit Verification OTP', html });
+    res.json({ success: true, message: 'OTP sent successfully' });
+  } catch (error) {
+    console.error('Edit OTP Request Error:', error);
+    res.status(500).json({ error: 'Failed to send OTP' });
+  }
+});
+
+app.post('/api/profile/update', authenticateToken, async (req, res) => {
+  try {
+    const { otp, restaurantName, mobile, location, gstNumber } = req.body;
+    const user = await User.findByPk(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const record = await PasswordResetOTP.findOne({ where: { identifier: user.email, otp } });
+    if (!record || record.expiresAt < new Date()) {
+      return res.status(400).json({ error: 'Invalid or expired OTP' });
+    }
+
+    user.restaurantName = restaurantName || user.restaurantName;
+    user.mobile = mobile || user.mobile;
+    user.location = location !== undefined ? location : user.location;
+    user.gstNumber = gstNumber !== undefined ? gstNumber : user.gstNumber;
+
+    await user.save();
+    await PasswordResetOTP.destroy({ where: { identifier: user.email } });
+
+    res.json({ success: true, user: { id: user.id, restaurantName: user.restaurantName, email: user.email, mobile: user.mobile, location: user.location, gstNumber: user.gstNumber } });
+  } catch (error) {
+    console.error('Profile Update Error:', error);
+    res.status(500).json({ error: 'Update failed' });
+  }
+});
 
 // --- Support / Query Endpoint ---
 app.post('/api/support/query', authenticateToken, async (req, res) => {
@@ -754,6 +813,12 @@ async function patchSchema() {
     try { 
       await sequelize.query("ALTER TABLE `OrderItems` ADD COLUMN `note` VARCHAR(255);"); 
       console.log('✅ Added note to OrderItems'); 
+    } catch(e) { }
+
+    // Add 'gstNumber' to Users if missing
+    try {
+      await sequelize.query("ALTER TABLE `Users` ADD COLUMN `gstNumber` VARCHAR(255);"); 
+      console.log('✅ Added gstNumber to Users'); 
     } catch(e) { }
 
     // Add 'available' to MenuItems if missing
