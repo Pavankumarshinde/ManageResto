@@ -40,6 +40,7 @@ let state = {
 
 const authHeaders = () => ({
   'Content-Type': 'application/json',
+  'apikey': typeof SUPABASE_ANON_KEY !== 'undefined' ? SUPABASE_ANON_KEY : '',
   ...(token ? { 'Authorization': `Bearer ${token}` } : {})
 });
 
@@ -201,7 +202,7 @@ async function processSaveQueue() {
   saveQueue = []; // Clear queue since we have the latest
 
   try {
-    const res = await fetch(`${API_BASE}/api/state`, {
+    const res = await fetch(`${API_BASE}/state`, {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify(payload)
@@ -241,7 +242,7 @@ async function loadState() {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
 
-    const res = await fetch(`${API_BASE}/api/state`, {
+    const res = await fetch(`${API_BASE}/state`, {
       headers: authHeaders(),
       signal: controller.signal
     });
