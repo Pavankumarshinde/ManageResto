@@ -6,3 +6,5 @@ list_users.js
 .env
 database.json
 node_modules
+migrate-to-supabase.js
+supabase/.env

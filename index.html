@@ -888,7 +888,10 @@
   <div id="toast" class="toast">✓ Saved Successfully</div>
 
   <!-- Scripts -->
-  <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+  <!-- Supabase JS SDK (replaces socket.io) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <!-- Supabase project credentials + client init (must come before app.js) -->
+  <script src="supabase-client.js"></script>
   <script src="data.js"></script>
   <script src="app.js?v=2.0"></script>
 

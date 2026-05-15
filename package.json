@@ -1,25 +1,20 @@
 {
   "name": "mangeresto",
-  "version": "1.0.0",
-  "main": "server.js",
+  "version": "2.0.0",
+  "description": "ManageResto – Restaurant Order Management (Supabase backend)",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
+    "migrate": "node migrate-to-supabase.js",
+    "deploy": "supabase functions deploy --no-verify-jwt signup && supabase functions deploy --no-verify-jwt login && supabase functions deploy --no-verify-jwt forgot-password && supabase functions deploy state && supabase functions deploy profile && supabase functions deploy support && supabase functions deploy health",
+    "deploy:all": "supabase functions deploy",
+    "test": "echo \"No tests specified\" && exit 0"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
   "dependencies": {
-    "bcryptjs": "^3.0.3",
-    "body-parser": "^2.2.2",
-    "cors": "^2.8.6",
+    "@supabase/supabase-js": "^2.49.4",
     "dotenv": "^17.3.1",
-    "express": "^5.2.1",
-    "jsonwebtoken": "^9.0.3",
-    "mysql2": "^3.19.1",
-    "nodemailer": "^8.0.3",
-    "sequelize": "^6.37.8",
-    "socket.io": "^4.8.3"
-  }
+    "mysql2": "^3.19.1"
+  },
+  "devDependencies": {}
 }

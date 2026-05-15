@@ -1,14 +1,13 @@
 // ==========================================
-// ManageResto – Main Application Logic (v1.3 - Connection Fix)
+// ManageResto – Main Application Logic (v2.0 - Supabase)
 // ==========================================
-console.log("🚀 ManageResto Frontend v1.3 Loading...");
+console.log("🚀 ManageResto Frontend v2.0 Loading...");
 
-// Auto-detect backend: use localhost in development, Render in production
-const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-  ? `http://localhost:${window.location.port || 3000}`
-  : "https://manageresto.onrender.com";
+// Supabase Edge Functions base URL (set in supabase-client.js)
+// FUNCTIONS_BASE and supabaseClient are defined in supabase-client.js
+const API_BASE = typeof FUNCTIONS_BASE !== 'undefined' ? FUNCTIONS_BASE : 'https://manageresto.onrender.com';
 
-console.log('🌐 API Base:', API_BASE);
+console.log('🌐 API Base (Supabase):', API_BASE);
 
 let saveQueue = [];
 let isProcessingQueue = false;
@@ -16,7 +15,7 @@ let lastSaveTime = 0;
 let currentBillOrderId = null;
 let user = JSON.parse(localStorage.getItem('user')) || null;
 let token = localStorage.getItem('token') || null;
-let socket = null;
+let realtimeChannel = null; // Supabase Realtime channel (replaces socket.io)
 let pollInterval = null;
 let eventSource = null;
 let lastServerSyncTime = null;
@@ -45,83 +44,65 @@ const authHeaders = () => ({
 });
 
 function initSocket() {
-  if (socket || !user) return;
-
-  socket = io(API_BASE, {
-    auth: { token },
-    transports: ['polling', 'websocket'],  // Start with polling for session affinity, then upgrade
-    reconnectionAttempts: 5,
-    reconnectionDelay: 3000,
-    timeout: 10000
-  });
-
-  socket.on('connect', () => {
-    console.log('🔌 Connected to WebSocket');
-    socket.emit('join', user.id);
-  });
-
-  socket.on('connect_error', (err) => {
-    console.warn('⚠️ Socket connection failed (app still works):', err.message);
-  });
-
-  // 🔥 Polling-only sync enabled. Sockets used only for connection health.
-  socket.on('stateUpdated', (data) => {
-    // console.log('🔔 Socket update ignored (polling only)');
-  });
-
-  socket.on('disconnect', () => {
-    console.log('❌ Socket disconnected');
-  });
+  // Removed: socket.io replaced by Supabase Realtime
+  console.log('ℹ️ Socket.IO removed — using Supabase Realtime instead');
 }
 
 let fetchController = null;
 let isSyncing = false;
 
-// SSE Synchronization
+// Supabase Realtime Sync (replaces socket.io + SSE)
 function initSSESync() {
-  if (eventSource) eventSource.close();
+  if (!user || !supabaseClient) return;
 
-  const sseUrl = `${API_BASE}/api/sync/events?token=${token}`;
-  console.log("📡 Initializing SSE Sync...");
+  // Unsubscribe from any existing channel
+  if (realtimeChannel) {
+    supabaseClient.removeChannel(realtimeChannel);
+    realtimeChannel = null;
+  }
 
-  eventSource = new EventSource(sseUrl);
+  console.log('📡 Initializing Supabase Realtime Sync...');
 
-  eventSource.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      if (data.type === 'connected') {
-        console.log("✅ SSE Sync Connected");
-      } else if (data.type === 'stateUpdated') {
-        console.log("🔄 SSE: Remote state update received");
+  realtimeChannel = supabaseClient
+    .channel('resto-state-changes')
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'resto_states',
+        filter: `user_id=eq.${user.id}`,
+      },
+      (payload) => {
+        console.log('🔄 Realtime: Remote state update received');
 
         // 🛡️ Guard: Don't overwrite if we recently saved (5s window)
         if (Date.now() - lastSaveTime < 5000) {
-          console.log("⏳ Skipping SSE update due to recent local save");
+          console.log('⏳ Skipping Realtime update (recent local save)');
           return;
         }
 
-        const newState = data.state;
+        const newState = payload.new;
         state.menu = newState.menu || [];
         state.orders = newState.orders || [];
-        state.nextOrderId = newState.nextOrderId || 1;
-        state.nextMenuId = newState.nextMenuId || 100;
+        state.nextOrderId = newState.next_order_id || 1;
+        state.nextMenuId = newState.next_menu_id || 100;
         state.waiters = newState.waiters || [];
+        state.categories = newState.categories || [];
 
-        lastServerSyncTime = new Date(newState.updatedAt || Date.now()).getTime();
-
-        console.log(`✅ State synced via SSE. Orders: ${state.orders.length}`);
+        lastServerSyncTime = new Date(newState.updated_at || Date.now()).getTime();
+        console.log(`✅ State synced via Realtime. Orders: ${state.orders.length}`);
         renderApp();
       }
-    } catch (err) {
-      console.error("SSE Message Error:", err);
-    }
-  };
-
-  eventSource.onerror = (err) => {
-    console.warn("⚠️ SSE Connection lost. Retrying in 5s...");
-    eventSource.close();
-    setTimeout(initSSESync, 5000);
-  };
+    )
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        console.log('✅ Supabase Realtime connected');
+      } else if (status === 'CHANNEL_ERROR') {
+        console.warn('⚠️ Realtime channel error. Retrying in 5s...');
+        setTimeout(initSSESync, 5000);
+      }
+    });
 }
 
 async function fetchState(forced = false) {
@@ -139,7 +120,7 @@ async function fetchState(forced = false) {
   isSyncing = true;
 
   try {
-    const res = await fetch(`${API_BASE}/api/state?ts=${Date.now()}`, {
+    const res = await fetch(`${API_BASE}/state?ts=${Date.now()}`, {
       signal: fetchController.signal,
       headers: authHeaders()
     });
@@ -290,8 +271,7 @@ async function loadState() {
       lastServerSyncTime = Date.now();
     }
 
-    initSocket(); // Initialize real-time updates (legacy)
-    initSSESync(); // Initialize NEW SSE Sync
+    initSSESync(); // Initialize Supabase Realtime sync
 
     showAuthUI(false);
     updateProfileUI();
@@ -366,7 +346,7 @@ window.handleSignup = async function () {
 
   try {
     showLoading('Creating your account...');
-    const signupUrl = `${API_BASE}/api/signup`;
+    const signupUrl = `${API_BASE}/signup`;
     console.log('Sending signup to:', signupUrl);
 
     const res = await fetch(signupUrl, {
@@ -400,7 +380,7 @@ window.handleLogin = async function () {
 
   try {
     showLoading('Logging in...');
-    const res = await fetch(`${API_BASE}/api/login`, {
+    const res = await fetch(`${API_BASE}/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ login, password })
@@ -430,10 +410,10 @@ window.handleRequestOTP = async function () {
 
   try {
     showLoading('Sending OTP...');
-    const res = await fetch(`${API_BASE}/api/forgot-password`, {
+    const res = await fetch(`${API_BASE}/forgot-password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ identifier })
+      body: JSON.stringify({ action: 'request', identifier })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to send OTP');
@@ -454,10 +434,10 @@ window.handleVerifyOTP = async function () {
 
   try {
     showLoading('Verifying...');
-    const res = await fetch(`${API_BASE}/api/verify-otp`, {
+    const res = await fetch(`${API_BASE}/forgot-password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ identifier, otp })
+      body: JSON.stringify({ action: 'verify', identifier, otp })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Invalid OTP');
@@ -482,10 +462,10 @@ window.handleResetPassword = async function () {
 
   try {
     showLoading('Resetting password...');
-    const res = await fetch(`${API_BASE}/api/reset-password`, {
+    const res = await fetch(`${API_BASE}/forgot-password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ identifier, otp, newPassword })
+      body: JSON.stringify({ action: 'reset', identifier, otp, newPassword })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Reset failed');
@@ -500,9 +480,10 @@ window.handleResetPassword = async function () {
 }
 
 window.handleLogout = function () {
-  if (socket) {
-    socket.disconnect();
-    socket = null;
+  // Unsubscribe from Realtime
+  if (realtimeChannel) {
+    supabaseClient.removeChannel(realtimeChannel);
+    realtimeChannel = null;
   }
   if (pollInterval) {
     clearInterval(pollInterval);
@@ -512,6 +493,8 @@ window.handleLogout = function () {
   localStorage.removeItem('user');
   token = null;
   user = null;
+  // Sign out from Supabase Auth session
+  if (supabaseClient) supabaseClient.auth.signOut().catch(() => {});
   // Reset state to avoid showing previous user's data
   state.orders = [];
   state.menu = [];
@@ -537,9 +520,10 @@ function updateProfileUI() {
 window.requestProfileEdit = async function() {
   try {
     showLoading('Sending verification code...');
-    const res = await fetch(`${API_BASE}/api/profile/request-edit-otp`, {
+    const res = await fetch(`${API_BASE}/profile`, {
       method: 'POST',
-      headers: authHeaders()
+      headers: authHeaders(),
+      body: JSON.stringify({ action: 'request-otp' })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to request OTP');
@@ -590,10 +574,10 @@ window.submitProfileEdit = async function() {
 
   try {
     showLoading('Updating profile...');
-    const res = await fetch(`${API_BASE}/api/profile/update`, {
+    const res = await fetch(`${API_BASE}/profile`, {
       method: 'POST',
       headers: authHeaders(),
-      body: JSON.stringify({ otp, restaurantName, mobile, location, gstNumber })
+      body: JSON.stringify({ action: 'update', otp, restaurantName, mobile, location, gstNumber })
     });
     
     const data = await res.json();
@@ -641,7 +625,7 @@ window.handleSendQuery = async function() {
     btn.disabled = true;
     btn.textContent = 'Sending...';
     
-    const res = await fetch(`${API_BASE}/api/support/query`, {
+    const res = await fetch(`${API_BASE}/support`, {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify({ query })

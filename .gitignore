@@ -1,18 +1,16 @@
 node_modules/
 .env
 *.js
-!server.js
 !data.js
 !app.js
-!test_post.js
-!test_post2.js
-!check_states.js
-!fix_id_gap.js
+!supabase-client.js
+!migrate-to-supabase.js
 !inspect_state.js
-!list_dbs.js
-!remote_sync.js
-!run_audit.js
 !test_status.js
+
+# Supabase secrets (never commit)
+supabase/.env
+supabase/functions/.env
 tmp/
 .env.test
 .env.aiven
